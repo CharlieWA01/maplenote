@@ -2,6 +2,7 @@
 :root {
   --bg: #1e1f22;
   --panel: #2b2d31;
+  --hover: #35373c;
   --border: #3a3c42;
   --text: #dcdde0;
   --muted: #8e9199;
@@ -25,6 +26,20 @@ body {
   font: 14px/1.4 system-ui, sans-serif;
 }
 
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+/* ---- Toolbar ---- */
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -40,29 +55,116 @@ body {
   margin-right: 8px;
 }
 
-select, button {
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 10px;
+.status {
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-select { min-width: 220px; max-width: 40vw; }
-
-button { cursor: pointer; }
-button:hover:not(:disabled) { border-color: var(--accent); }
-button:disabled { opacity: 0.5; cursor: default; }
-
-.status { color: var(--muted); margin-left: auto; }
 .status.error { color: var(--error); }
 
-main {
+/* ---- Sidebar + editor area ---- */
+
+.workspace {
   flex: 1;
   display: flex;
   min-height: 0;
 }
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  overflow: auto;
+  padding: 6px 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar summary,
+.sidebar .file-item {
+  display: block;
+  width: 100%;
+  padding: 3px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.sidebar summary { color: var(--muted); list-style: none; }
+.sidebar summary::-webkit-details-marker { display: none; }
+.sidebar summary::before { content: "▸ "; }
+.sidebar details[open] > summary::before { content: "▾ "; }
+.sidebar summary:hover { color: var(--text); }
+
+.sidebar .folder-contents { padding-left: 12px; }
+
+.sidebar .file-item {
+  border: none;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+.sidebar .file-item:hover { background: var(--hover); }
+.sidebar .file-item.active {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ---- Tabs ---- */
+
+.tabs {
+  display: flex;
+  overflow-x: auto;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  border-right: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* The dot for unsaved changes, and the close button, share one small slot. */
+.tab .tab-close {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  line-height: 18px;
+}
+.tab .tab-close:hover { color: var(--text); background: var(--hover); }
+.tab.dirty .tab-close::before { content: "●"; }
+.tab.dirty:hover .tab-close::before,
+.tab:not(.dirty) .tab-close::before { content: "✕"; }
+.tab.pinned .tab-close { visibility: hidden; }
+.tab.pinned.dirty .tab-close { visibility: visible; pointer-events: none; }
+.tab.pinned.dirty:hover .tab-close::before { content: "●"; }
+
+/* ---- Editor ---- */
 
 #editor {
   flex: 1;

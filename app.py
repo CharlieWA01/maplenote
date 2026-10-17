@@ -7,9 +7,12 @@ The server has two jobs:
 All the editing happens in the browser; the server just moves text to and from disk.
 
 API
-  GET /api/files               -> ["notes.md", "logs/app.log", ...]
-  GET /api/file?path=notes.md  -> {"path": "notes.md", "content": "..."}
-  PUT /api/file?path=notes.md  with body {"content": "..."}  -> saves the file
+  GET    /api/files               -> {"files": ["notes.md", ...], "scratch": "scratch.txt"}
+  GET    /api/file?path=notes.md  -> {"path": "notes.md", "content": "..."}
+  PUT    /api/file?path=notes.md  with body {"content": "..."}  -> saves the file
+  POST   /api/file?path=notes.md  -> creates a new, empty file (409 if it exists)
+  DELETE /api/file?path=notes.md  -> deletes the file
+  POST   /api/rename  with body {"from": "a.txt", "to": "b.txt"}  -> renames a file
 """
 import os
 import tempfile
@@ -26,6 +29,7 @@ app.config["MAX_CONTENT_LENGTH"] = config.MAX_FILE_BYTES + 64 * 1024
 
 WORKSPACE = config.WORKSPACE.expanduser().resolve()
 WORKSPACE.mkdir(parents=True, exist_ok=True)
+SCRATCH = WORKSPACE / config.SCRATCH_FILE
 
 
 # ---------------------------------------------------------------- safety checks
@@ -57,6 +61,11 @@ def relative(path):
     return path.relative_to(WORKSPACE).as_posix()
 
 
+def refuse_if_scratch(path, action):
+    if path == SCRATCH:
+        abort(403, f"The scratch pad can't be {action}.")
+
+
 @app.errorhandler(HTTPException)
 def json_error(error):
     """Send errors back as JSON so the page can show a readable message."""
@@ -75,6 +84,8 @@ def index():
 @app.get("/api/files")
 def list_files():
     """Every file in the workspace, skipping hidden ones (names starting with '.')."""
+    if not SCRATCH.exists():
+        SCRATCH.touch()
     files = []
     for folder, subfolders, filenames in os.walk(WORKSPACE):
         # Editing this list in place tells os.walk not to descend into hidden folders.
@@ -82,7 +93,7 @@ def list_files():
         for name in filenames:
             if not name.startswith("."):
                 files.append(relative(Path(folder) / name))
-    return jsonify(sorted(files, key=str.lower))
+    return jsonify(files=sorted(files, key=str.lower), scratch=relative(SCRATCH))
 
 
 @app.get("/api/file")
@@ -113,6 +124,43 @@ def save_file():
     path.parent.mkdir(parents=True, exist_ok=True)
     write_atomically(path, encoded)
     return jsonify(path=relative(path), saved=True)
+
+
+@app.post("/api/file")
+def create_file():
+    path = resolve_in_workspace(request.args.get("path", ""))
+    if path.exists():
+        abort(409, f"'{relative(path)}' already exists.")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch()
+    return jsonify(path=relative(path), created=True)
+
+
+@app.delete("/api/file")
+def delete_file():
+    path = resolve_in_workspace(request.args.get("path", ""))
+    refuse_if_scratch(path, "deleted")
+    if not path.is_file():
+        abort(404, "File not found.")
+    path.unlink()
+    return jsonify(path=relative(path), deleted=True)
+
+
+@app.post("/api/rename")
+def rename_file():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        abort(400, 'Expected JSON like {"from": "a.txt", "to": "b.txt"}.')
+    source = resolve_in_workspace(data.get("from", ""))
+    target = resolve_in_workspace(data.get("to", ""))
+    refuse_if_scratch(source, "renamed")
+    if not source.is_file():
+        abort(404, "File not found.")
+    if target.exists():
+        abort(409, f"'{relative(target)}' already exists.")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    source.rename(target)
+    return jsonify(path=relative(target), renamed=True)
 
 
 def write_atomically(path, data):

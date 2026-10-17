@@ -9,18 +9,22 @@
 <body>
   <header class="toolbar">
     <span class="brand">Maplenote</span>
-    <select id="file-select" aria-label="Open a file">
-      <option value="">Open a file…</option>
-    </select>
     <button id="new-button" type="button">New file</button>
     <button id="save-button" type="button" disabled>Save</button>
+    <button id="rename-button" type="button" disabled>Rename</button>
+    <button id="delete-button" type="button" disabled>Delete</button>
     <span id="status" class="status" role="status"></span>
   </header>
 
-  <main>
-    <textarea id="editor" spellcheck="false" disabled
-              placeholder="Open a file or create a new one to start writing."></textarea>
-  </main>
+  <div class="workspace">
+    <nav id="file-tree" class="sidebar" aria-label="Files"></nav>
+
+    <main class="editor-pane">
+      <div id="tabs" class="tabs" role="tablist"></div>
+      <textarea id="editor" spellcheck="false" disabled
+                placeholder="Open a file from the sidebar, or create a new one."></textarea>
+    </main>
+  </div>
 
   <script src="/static/app.js"></script>
 </body>

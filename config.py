@@ -9,6 +9,9 @@ from pathlib import Path
 # The folder Maplenote reads and writes. It never touches anything outside it.
 WORKSPACE = Path(os.environ.get("MAPLENOTE_WORKSPACE", "~/maplenote-files"))
 
+# The always-open scratch pad, relative to the workspace. Created if missing.
+SCRATCH_FILE = "scratch.txt"
+
 # 127.0.0.1 means "only reachable from this computer".
 HOST = os.environ.get("MAPLENOTE_HOST", "127.0.0.1")
 PORT = int(os.environ.get("MAPLENOTE_PORT", "8000"))
