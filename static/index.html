@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maplenote</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="toolbar">
+    <span class="brand">Maplenote</span>
+    <select id="file-select" aria-label="Open a file">
+      <option value="">Open a file…</option>
+    </select>
+    <button id="new-button" type="button">New file</button>
+    <button id="save-button" type="button" disabled>Save</button>
+    <span id="status" class="status" role="status"></span>
+  </header>
+
+  <main>
+    <textarea id="editor" spellcheck="false" disabled
+              placeholder="Open a file or create a new one to start writing."></textarea>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
