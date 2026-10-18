@@ -9,12 +9,20 @@ All the editing happens in the browser; the server just moves text to and from d
 API
   GET    /api/files               -> {"files": ["notes.md", ...], "scratch": "scratch.txt",
                                       "max_file_bytes": 10485760}
-  GET    /api/file?path=notes.md  -> {"path": "notes.md", "content": "..."}
-  PUT    /api/file?path=notes.md  with body {"content": "..."}  -> saves the file
+  GET    /api/file?path=notes.md  -> {"path": "notes.md", "content": "...", "version": "3f9a…"}
+  GET    /api/stat?path=notes.md  -> {"path": "notes.md", "version": "3f9a…"}
+  PUT    /api/file?path=notes.md  with body {"content": "...", "base_version": "3f9a…"}
+                                  -> saves the file; 409 if it no longer matches base_version
   POST   /api/file?path=notes.md  -> creates a new, empty file (409 if it exists)
   DELETE /api/file?path=notes.md  -> deletes the file
   POST   /api/rename  with body {"from": "a.txt", "to": "b.txt"}  -> renames a file
+
+A "version" is a fingerprint of a file's contents. The browser sends back the
+version it last saw when saving; if the file has changed since (another tab,
+another device, another program), the save is refused so nothing is silently
+overwritten.
 """
+import hashlib
 import os
 import tempfile
 from pathlib import Path
@@ -60,6 +68,11 @@ def resolve_in_workspace(rel_path):
 def relative(path):
     """The path as the browser sees it: relative to the workspace, with / separators."""
     return path.relative_to(WORKSPACE).as_posix()
+
+
+def version_of(data):
+    """A short fingerprint of a file's bytes: it changes whenever the contents do."""
+    return hashlib.sha256(data).hexdigest()[:16]
 
 
 def refuse_if_scratch(path, action):
@@ -109,13 +122,22 @@ def read_file():
         abort(404, "File not found.")
     if path.stat().st_size > config.MAX_FILE_BYTES:
         abort(413, f"File is larger than {config.MAX_FILE_BYTES // (1024 * 1024)} MB.")
+    data = path.read_bytes()
     try:
-        # newline="" keeps line endings exactly as they are in the file.
-        with open(path, encoding="utf-8", newline="") as f:
-            content = f.read()
+        # Decoding the raw bytes keeps line endings exactly as they are in the file.
+        content = data.decode("utf-8")
     except UnicodeDecodeError:
         abort(415, "This doesn't look like a text file (it isn't valid UTF-8).")
-    return jsonify(path=relative(path), content=content)
+    return jsonify(path=relative(path), content=content, version=version_of(data))
+
+
+@app.get("/api/stat")
+def stat_file():
+    """Just the version, so the page can cheaply check whether a file changed."""
+    path = resolve_in_workspace(request.args.get("path", ""))
+    if not path.is_file():
+        abort(404, "File not found.")
+    return jsonify(path=relative(path), version=version_of(path.read_bytes()))
 
 
 @app.put("/api/file")
@@ -127,9 +149,22 @@ def save_file():
     encoded = data["content"].encode("utf-8")
     if len(encoded) > config.MAX_FILE_BYTES:
         abort(413, f"File is larger than {config.MAX_FILE_BYTES // (1024 * 1024)} MB.")
+
+    # Conflict check: refuse to overwrite changes the browser hasn't seen.
+    # (A file that no longer exists is simply created again.)
+    base_version = data.get("base_version")
+    if base_version is not None and path.is_file():
+        current_version = version_of(path.read_bytes())
+        if current_version != base_version:
+            return jsonify(
+                error=f"'{relative(path)}' was changed somewhere else.",
+                conflict=True,
+                version=current_version,
+            ), 409
+
     path.parent.mkdir(parents=True, exist_ok=True)
     write_atomically(path, encoded)
-    return jsonify(path=relative(path), saved=True)
+    return jsonify(path=relative(path), saved=True, version=version_of(encoded))
 
 
 @app.post("/api/file")

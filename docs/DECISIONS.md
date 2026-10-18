@@ -57,7 +57,47 @@ principle: enforce rules on the server.
 **Why:** Simple, and a per-device tab layout makes sense. File contents are
 always loaded fresh from the server.
 
+### Autosave, crash recovery and conflict detection (2026-10-18, PR #3)
+**Decision:**
+- **Autosave** about 1 s after typing stops, **on by default** with a toolbar
+  toggle (remembered per browser). The Save button stays either way.
+- **Crash recovery:** while you type, a draft of each tab is kept in the
+  browser's IndexedDB. If a save never happened (server stopped, crash, or
+  autosave off and the page closed), reopening offers "Keep them / Discard".
+- **Conflict detection:** each tab remembers the *version* of the file it
+  loaded. Workspace versions are a fingerprint (hash) of the contents,
+  computed by the server, which **refuses** a save whose `base_version` is
+  out of date (409). Device files use their last-modified time, checked by
+  the browser. On a conflict, a banner offers **Load their version / Keep
+  mine / Save mine as a copy** (copy for workspace files only).
+- **Quiet reload:** if a file changed elsewhere and this tab has no unsaved
+  edits, it just reloads when you switch to it or return to the window.
+**Why:** No lost work, and no silent overwrites, which matter most once
+Maplenote is used from several devices against one server.
+**Details:** All saving goes through `saveTab()` in `app.js`. A recovered
+draft keeps the version it was made against, so restoring it after the file
+changed raises a conflict instead of overwriting. Copy tabs never autosave
+(each save would be a download). Closing a tab saves it first when autosave
+is on; see the next entry for when it's off.
+**Rejected:** Per-file autosave settings (parked); automatic merging of
+conflicting edits (complex, and a wrong merge is worse than asking).
+
+### Unsaved-changes warnings when autosave is off (2026-10-18, PR #3 review)
+**Decision:** When a tab's edits won't be autosaved (autosave off, or a copy
+tab), closing it asks **"Save changes to X before closing?"** with
+**Save / Don't save / Cancel** (Maplenote's own dialog; the browser's
+`confirm()` only offers OK/Cancel). Closing or refreshing the browser tab
+in that state shows Chrome's standard "Leave site?" warning (pages can't
+change its wording). With autosave on, there are still no prompts: closing
+saves first.
+**Why:** Charlie, reviewing PR #3: silently discarding edits goes against
+normal editor practice. The original "no alerts" choice assumed autosave
+was always on; once it became optional, the "off" case needed the
+familiar safety net.
+**Supersedes:** part of the entry below.
+
 ### Autosave, no "unsaved changes" prompts (2026-10-17)
+*Partly superseded (2026-10-18): prompts now appear when autosave is off; see above.*
 **Decision:** Step 3 adds autosave about 1 s after typing stops, plus crash
 recovery from drafts kept in the browser. No "are you sure?" prompts for
 unsaved work. Deleting a file still asks for confirmation (it can't be undone).

@@ -58,6 +58,23 @@ To use a different folder:
 MAPLENOTE_WORKSPACE=~/Documents python app.py
 ```
 
+### Saving
+
+**Autosave** (the toolbar checkbox, on by default) saves about a second after
+you stop typing. **Save** always saves right away. Either way:
+
+- **Crash recovery:** unsaved text is kept in the browser. If Maplenote didn't
+  get to save it (the server was stopped, the computer crashed, or autosave was
+  off), you'll be offered the recovered changes next time.
+- **Conflicts:** if a file was changed somewhere else (another tab, another
+  device, another program) while you had unsaved edits, Maplenote won't
+  overwrite it. A bar above the editor lets you **load their version**, **keep
+  yours**, or **save yours as a copy** (`name (conflict).md`). If you had no
+  unsaved edits, it simply reloads the new version.
+- **Closing with unsaved edits:** with autosave on, closing a tab saves it.
+  With autosave off, Maplenote asks **Save / Don't save / Cancel**, and the
+  browser warns before you close or refresh the page.
+
 ### Opening files from anywhere on your device
 
 **Open…** opens any text file your browser can reach: Downloads, Google

@@ -17,6 +17,10 @@
     <button id="rename-button" type="button" disabled>Rename</button>
     <button id="delete-button" type="button" disabled>Delete</button>
     <span id="status" class="status" role="status"></span>
+    <!-- A setting, not an action, so it sits apart from the buttons at the far right. -->
+    <label class="toggle" title="Save automatically a moment after you stop typing">
+      <input id="autosave-toggle" type="checkbox"> Autosave
+    </label>
   </header>
 
   <div class="workspace">
@@ -24,6 +28,8 @@
 
     <main class="editor-pane">
       <div id="tabs" class="tabs" role="tablist"></div>
+      <!-- Conflict and crash-recovery messages for the active tab. -->
+      <div id="banner" class="banner" role="alert" hidden></div>
       <div id="reconnect" class="notice" hidden>
         <p>Maplenote needs your permission again to open <strong id="reconnect-name"></strong>.</p>
         <button id="reconnect-button" type="button">Allow access</button>
@@ -32,6 +38,18 @@
                 placeholder="Open a file from the sidebar, or create a new one."></textarea>
     </main>
   </div>
+
+  <!-- Asked when closing a tab that has unsaved edits and won't be autosaved. -->
+  <dialog id="unsaved-dialog" class="dialog">
+    <form method="dialog">
+      <p>Save changes to <strong id="unsaved-name"></strong> before closing?</p>
+      <div class="dialog-buttons">
+        <button value="save" type="submit" autofocus>Save</button>
+        <button value="discard" type="submit">Don't save</button>
+        <button value="cancel" type="submit">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="/static/app.js"></script>
 </body>

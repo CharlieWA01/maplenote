@@ -57,6 +57,19 @@ button:disabled { opacity: 0.5; cursor: default; }
   margin-right: 8px;
 }
 
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input { accent-color: var(--accent); margin: 0; }
+
 .status {
   color: var(--muted);
   margin-left: auto;
@@ -168,6 +181,39 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tab.pinned .tab-close { visibility: hidden; }
 .tab.pinned.dirty .tab-close { visibility: visible; pointer-events: none; }
 .tab.pinned.dirty:hover .tab-close::before { content: "●"; }
+
+/* A tab whose file was changed somewhere else. */
+.tab.conflict .tab-name { color: var(--error); }
+
+/* ---- Banner: conflicts and recovered drafts ---- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.banner p { margin: 0 8px 0 0; }
+.banner.warning { box-shadow: inset 3px 0 0 var(--error); }
+.banner.info { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* ---- "Save changes?" dialog ---- */
+
+.dialog {
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 16px 20px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+.dialog p { margin: 0 0 16px; }
+.dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-buttons [value="save"] { border-color: var(--accent); }
 
 /* ---- "Allow access" panel for device files after a refresh ---- */
 

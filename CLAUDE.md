@@ -17,6 +17,9 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
   and file actions. A tab's `kind` says where its file lives: `workspace`
   (via the server API), `device` (opened with "Open…", read and saved by the
   browser directly; the server never sees it) or `copy` (fallback).
+  Every save goes through `saveTab()`; each tab tracks the file `version`
+  it last saw, and saves carry it so changes made elsewhere aren't
+  overwritten (the server returns 409 for workspace files).
 
 ## Ground rules
 
