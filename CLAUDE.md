@@ -22,6 +22,10 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
   overwritten (the server returns 409 for workspace files).
   The editing area is CodeMirror 6 (`static/vendor/codemirror.js`, global
   `CM`): one editor view, and each tab has its own editor state.
+  Markdown tabs have an Edit/Preview `mode`; the preview uses markdown-it
+  (`static/vendor/markdown-it.js`, global `MD`) with `html: false`.
+- Security headers (Content-Security-Policy etc.) are set in `app.py`;
+  keep scripts and styles same-origin (no inline scripts, no CDNs).
 
 ## Ground rules
 
@@ -33,9 +37,9 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
   the server and the user's files share a machine. Nothing goes on the
   public internet without a login.
 - Keep it simple and dependency-light. Vendor frontend libraries into
-  `static/vendor/`; no CDNs (it must work offline). CodeMirror is bundled
-  from `vendor-src/` (see its README); rebuild only when upgrading, and
-  commit the recipe and bundle together.
+  `static/vendor/`; no CDNs (it must work offline). Bundles are built from
+  `vendor-src/` (see its README); rebuild only when upgrading, prefer
+  releases a few weeks old, and commit the recipe and bundles together.
 - Must run on Python 3.11 (Charlie's Chromebook) and in current Chrome.
 
 ## How we work

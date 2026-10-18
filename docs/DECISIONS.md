@@ -102,11 +102,32 @@ familiar safety net.
 recovery from drafts kept in the browser. No "are you sure?" prompts for
 unsaved work. Deleting a file still asks for confirmation (it can't be undone).
 
+### Markdown preview with markdown-it, plus a Content-Security-Policy (2026-10-18, PR #5)
+**Decision:** `.md` / `.markdown` tabs get an **Edit | Preview** switch at
+the right of the tab row (Obsidian's spot). Preview is rendered with
+**markdown-it**, vendored like CodeMirror (`static/vendor/markdown-it.js`,
+global `MD`, pinned to 15.0.2). Each tab remembers its mode, and preview
+modes are restored after a refresh.
+**Rendering choices:** `html: false` (HTML in a file is shown as text,
+never run), `linkify: true`, `breaks: true` (a single line break is a line
+break, as in Obsidian). `- [ ]` / `- [x]` become read-only checkboxes.
+Web and email links open in a new browser tab; other links do nothing yet.
+**Security:** the preview turns file contents into HTML, and files can come
+from anywhere (e.g. Downloads), so besides `html: false` the server now
+sends a **Content-Security-Policy** on every response: scripts only from
+this server, no plugins, no framing; images from anywhere. A test file full
+of injection attempts (`<script>`, `onerror`, `javascript:` links) renders
+as harmless text.
+**Rejected:** `marked` + DOMPurify (two libraries where one suffices);
+side-by-side split view (decided earlier: a toggle).
+**Pinned versions:** the newest markdown-it release was two days old, so we
+took the newest one that had been out for a few weeks.
+
 ### CodeMirror 6, bundled once and committed (2026-10-18, PR #4)
 **Decision:** Use CodeMirror **6**. The pieces we use are bundled with esbuild
 into one file, `static/vendor/codemirror.js` (a global `CM`), which is
 committed. The recipe (exact pinned versions, entry file, build command)
-lives in `vendor-src/`; license texts in `static/vendor/LICENSE-codemirror.txt`.
+lives in `vendor-src/`; license texts in `static/vendor/THIRD-PARTY-LICENSES.txt`.
 **Why 6 over 5:** 5 is in maintenance mode; 6 is current, better on touch
 screens (Chromebook), and is what Obsidian uses. Its one downside, needing a
 bundling step, only applies when *upgrading* the library: running Maplenote

@@ -28,7 +28,14 @@
     <nav id="file-tree" class="sidebar" aria-label="Files"></nav>
 
     <main class="editor-pane">
-      <div id="tabs" class="tabs" role="tablist"></div>
+      <div class="tab-row">
+        <div id="tabs" class="tabs" role="tablist"></div>
+        <!-- Shown only for Markdown (.md) tabs. -->
+        <div id="view-switch" class="view-switch" role="group" aria-label="Markdown view" hidden>
+          <button id="edit-mode-button" type="button" aria-pressed="true">Edit</button>
+          <button id="preview-mode-button" type="button" aria-pressed="false">Preview</button>
+        </div>
+      </div>
       <!-- Conflict and crash-recovery messages for the active tab. -->
       <div id="banner" class="banner" role="alert" hidden></div>
       <div id="reconnect" class="notice" hidden>
@@ -37,6 +44,8 @@
       </div>
       <!-- CodeMirror builds the editor inside this element (see app.js). -->
       <div id="editor" class="editor"></div>
+      <!-- The rendered Markdown, when a .md tab is in Preview mode. -->
+      <article id="preview" class="preview" tabindex="0" hidden></article>
       <footer class="statusbar">
         <span id="cursor-info"></span>
         <span id="count-info"></span>
@@ -61,6 +70,8 @@
 
   <!-- CodeMirror 6, bundled into one file (see vendor-src/README.md). Defines `CM`. -->
   <script src="/static/vendor/codemirror.js"></script>
+  <!-- markdown-it, for the Markdown preview. Defines `MD`. -->
+  <script src="/static/vendor/markdown-it.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -17,6 +17,10 @@
 // Editing: the editing area is CodeMirror 6 (the global `CM`, from static/vendor/).
 // There is one editor on screen, and each tab has its own CodeMirror *state*: its
 // text, cursor and undo history. Switching tabs swaps the state shown in the editor.
+//
+// Markdown (.md) tabs can switch between Edit and Preview. The preview is rendered
+// by markdown-it (the global `MD`) with raw HTML switched off, so a file can't
+// inject code into the page.
 
 const newButton = document.getElementById("new-button");
 const openButton = document.getElementById("open-button");
@@ -34,6 +38,10 @@ const editorContainer = document.getElementById("editor");
 const cursorInfo = document.getElementById("cursor-info");
 const countInfo = document.getElementById("count-info");
 const wrapToggle = document.getElementById("wrap-toggle");
+const viewSwitch = document.getElementById("view-switch");
+const editModeButton = document.getElementById("edit-mode-button");
+const previewModeButton = document.getElementById("preview-mode-button");
+const previewPane = document.getElementById("preview");
 const reconnectPanel = document.getElementById("reconnect");
 const reconnectName = document.getElementById("reconnect-name");
 const reconnectButton = document.getElementById("reconnect-button");
@@ -209,6 +217,7 @@ function replaceText(tab, text) {
   } else {
     tab.state = tab.state.update(transaction).state;
   }
+  if (tab === activeTab && showsPreview(tab)) renderPreview(tab);
 }
 
 // Called by CodeMirror after every change to the editor: typing, undo, cursor moves.
@@ -253,7 +262,9 @@ function updateStatusBar() {
   const range = tab.state.selection.main;
   const line = tab.state.doc.lineAt(range.head);
   const selected = range.empty ? "" : ` (${(range.to - range.from).toLocaleString()} selected)`;
-  cursorInfo.textContent = `Ln ${line.number}, Col ${range.head - line.from + 1}${selected}`;
+  cursorInfo.textContent = showsPreview(tab)
+    ? "Preview (read-only)"
+    : `Ln ${line.number}, Col ${range.head - line.from + 1}${selected}`;
   countTimer = setTimeout(() => {
     if (tab !== activeTab) return;
     const words = textOf(tab).match(/\S+/g)?.length ?? 0;
@@ -261,6 +272,78 @@ function updateStatusBar() {
     countInfo.textContent = `${words.toLocaleString()} word${words === 1 ? "" : "s"} · ${lines.toLocaleString()} line${lines === 1 ? "" : "s"}`;
   }, 150);
 }
+
+// ------------------------------------------------------- Markdown preview
+
+// html: false means any HTML written in a file is shown as text, never run.
+// breaks: true makes a single line break a line break, as in Obsidian.
+const markdown = new MD.MarkdownIt({ html: false, linkify: true, breaks: true });
+
+const isMarkdown = (tab) => /\.(md|markdown)$/i.test(tab.name);
+const showsPreview = (tab) => tab.loaded && tab.mode === "preview" && isMarkdown(tab);
+
+function renderPreview(tab) {
+  const text = textOf(tab);
+  previewPane.innerHTML = text.trim()
+    ? markdown.render(text)
+    : '<p class="empty">Nothing to preview yet: switch to Edit and write some Markdown.</p>';
+  showTaskCheckboxes();
+}
+
+// "- [ ] buy milk" and "- [x] done" list items become (read-only) checkboxes.
+function showTaskCheckboxes() {
+  for (const item of previewPane.querySelectorAll("li")) {
+    // The text is either directly in the <li>, or in a <p> inside it (spaced-out lists).
+    const holder = item.firstElementChild?.tagName === "P" ? item.firstElementChild : item;
+    const text = holder.firstChild;
+    const match = text?.nodeType === Node.TEXT_NODE && /^\[([ xX])\]\s/.exec(text.data);
+    if (!match) continue;
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.disabled = true;
+    checkbox.checked = match[1] !== " ";
+    text.data = text.data.slice(match[0].length);
+    holder.insertBefore(checkbox, text);
+    item.classList.add("task");
+  }
+}
+
+// Show the active tab as either the editor or its preview.
+function showEditorOrPreview(tab) {
+  const preview = showsPreview(tab);
+  editorContainer.hidden = !tab.loaded || preview;
+  previewPane.hidden = !preview;
+  if (preview) {
+    renderPreview(tab);
+    previewPane.scrollTop = tab.previewScroll;
+    previewPane.focus();
+  } else if (tab.loaded) {
+    view.scrollDOM.scrollTop = tab.scroll;
+    view.focus();
+  }
+}
+
+function setMode(tab, mode) {
+  if (tab.mode === mode) return;
+  rememberEditorPosition();
+  tab.mode = mode;
+  showEditorOrPreview(tab);
+  render();
+  updateStatusBar();
+  saveSession();
+}
+
+// Links in the preview: web and email links open in a new browser tab. Anything
+// else (e.g. a link to another note) isn't supported yet, so it does nothing
+// rather than navigating away from Maplenote.
+previewPane.addEventListener("click", (event) => {
+  const link = event.target.closest("a[href]");
+  if (!link) return;
+  event.preventDefault();
+  const href = link.getAttribute("href");
+  if (/^(https?:|mailto:)/i.test(href)) window.open(href, "_blank", "noopener");
+  else showStatus("Links to other files don't work in the preview yet.");
+});
 
 // ---------------------------------------------------- browser storage (IndexedDB)
 
@@ -432,6 +515,8 @@ function newTab({ kind, key, name, content = "", version = null, loaded = true }
     saveAgain: false,
     timer: null,
     scroll: 0,
+    mode: "edit", // or "preview" (Markdown tabs only)
+    previewScroll: 0,
   };
 }
 
@@ -461,14 +546,12 @@ function activateTab(tab) {
   rememberEditorPosition();
   activeTab = tab;
   reconnectPanel.hidden = tab.loaded;
-  editorContainer.hidden = !tab.loaded;
   if (tab.loaded) {
     view.setState(tab.state); // its text, cursor, undo history and find bar
-    view.scrollDOM.scrollTop = tab.scroll;
-    view.focus();
   } else {
     reconnectName.textContent = tab.name;
   }
+  showEditorOrPreview(tab);
   document.title = `${tab.name} · Maplenote`;
   render();
   updateStatusBar();
@@ -480,7 +563,8 @@ function activateTab(tab) {
 // separately and switching back lands where you left off.
 function rememberEditorPosition() {
   if (!activeTab?.loaded) return;
-  activeTab.scroll = view.scrollDOM.scrollTop;
+  if (showsPreview(activeTab)) activeTab.previewScroll = previewPane.scrollTop;
+  else activeTab.scroll = view.scrollDOM.scrollTop;
 }
 
 // Would this tab's unsaved edits be saved automatically? (Copy tabs never autosave.)
@@ -539,6 +623,7 @@ function saveSession() {
     // "copy" tabs can't be reopened without the user picking the file again.
     open: tabs.filter((tab) => tab.kind !== "copy").map((tab) => tab.key),
     active: activeTab?.key,
+    preview: tabs.filter((tab) => tab.mode === "preview").map((tab) => tab.key),
   };
   writeSetting(SESSION_KEY, JSON.stringify(session));
 }
@@ -812,6 +897,8 @@ async function renameActive() {
     tab.key = tab.name = result.path;
     if (isDirty(tab)) storeDraft(tab);
     document.title = `${tab.name} · Maplenote`;
+    showEditorOrPreview(tab); // e.g. renaming notes.md to notes.txt leaves the preview
+    updateStatusBar();
     saveSession();
     await refreshFileList();
     render();
@@ -844,7 +931,14 @@ function render() {
   saveButton.disabled = !activeTab?.loaded;
   renameButton.disabled = !canRenameOrDelete(activeTab);
   deleteButton.disabled = !canRenameOrDelete(activeTab);
-  findButton.disabled = !activeTab?.loaded;
+  // In Preview, the browser's own Ctrl+F searches the rendered page.
+  findButton.disabled = !activeTab?.loaded || showsPreview(activeTab);
+  const markdownTab = activeTab?.loaded && isMarkdown(activeTab);
+  viewSwitch.hidden = !markdownTab;
+  if (markdownTab) {
+    editModeButton.setAttribute("aria-pressed", String(activeTab.mode !== "preview"));
+    previewModeButton.setAttribute("aria-pressed", String(activeTab.mode === "preview"));
+  }
 }
 
 function renderTabs() {
@@ -998,6 +1092,8 @@ autosaveToggle.addEventListener("change", () => {
 });
 
 findButton.addEventListener("click", () => CM.openSearchPanel(view));
+editModeButton.addEventListener("click", () => activeTab && setMode(activeTab, "edit"));
+previewModeButton.addEventListener("click", () => activeTab && setMode(activeTab, "preview"));
 
 wrapToggle.checked = wrapEnabled;
 wrapToggle.addEventListener("change", () => setWordWrap(wrapToggle.checked));
@@ -1027,6 +1123,10 @@ async function start() {
     } catch {
       // The file was deleted or renamed outside Maplenote since last time; skip it.
     }
+  }
+  for (const key of session.preview ?? []) {
+    const tab = findTab(key);
+    if (tab) tab.mode = "preview";
   }
   activateTab(findTab(session.active) ?? tabs[0]);
   const recovered = tabs.filter((tab) => tab.recoveredAt).length;
