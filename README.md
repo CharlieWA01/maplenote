@@ -23,6 +23,9 @@ files in one folder on your computer, and you edit them in a browser tab.
 - **`static/`** is the page itself: all the editing happens in the browser.
   Which tabs you had open is remembered by the browser, so a refresh restores them.
 
+Plans and design decisions live in [`docs/ROADMAP.md`](docs/ROADMAP.md) and
+[`docs/DECISIONS.md`](docs/DECISIONS.md).
+
 ## First-time setup
 
 Needs Python 3.9 or newer. On a Chromebook, run these in the Linux terminal.
