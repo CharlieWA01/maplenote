@@ -14,12 +14,13 @@
     <!-- Fallback for browsers that can't save back to the original file. -->
     <input id="file-input" type="file" multiple hidden accept=".txt,.md,.log,text/plain,text/markdown">
     <button id="save-button" type="button" disabled>Save</button>
-    <label class="toggle" title="Save automatically a moment after you stop typing">
-      <input id="autosave-toggle" type="checkbox"> Autosave
-    </label>
     <button id="rename-button" type="button" disabled>Rename</button>
     <button id="delete-button" type="button" disabled>Delete</button>
     <span id="status" class="status" role="status"></span>
+    <!-- A setting, not an action, so it sits apart from the buttons at the far right. -->
+    <label class="toggle" title="Save automatically a moment after you stop typing">
+      <input id="autosave-toggle" type="checkbox"> Autosave
+    </label>
   </header>
 
   <div class="workspace">

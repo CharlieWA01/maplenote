@@ -61,6 +61,9 @@ button:disabled { opacity: 0.5; cursor: default; }
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
   color: var(--muted);
   cursor: pointer;
   user-select: none;
