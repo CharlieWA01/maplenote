@@ -10,6 +10,9 @@
   <header class="toolbar">
     <span class="brand">Maplenote</span>
     <button id="new-button" type="button">New file</button>
+    <button id="open-button" type="button" title="Open a file from your device">Open…</button>
+    <!-- Fallback for browsers that can't save back to the original file. -->
+    <input id="file-input" type="file" multiple hidden accept=".txt,.md,.log,text/plain,text/markdown">
     <button id="save-button" type="button" disabled>Save</button>
     <button id="rename-button" type="button" disabled>Rename</button>
     <button id="delete-button" type="button" disabled>Delete</button>
@@ -21,6 +24,10 @@
 
     <main class="editor-pane">
       <div id="tabs" class="tabs" role="tablist"></div>
+      <div id="reconnect" class="notice" hidden>
+        <p>Maplenote needs your permission again to open <strong id="reconnect-name"></strong>.</p>
+        <button id="reconnect-button" type="button">Allow access</button>
+      </div>
       <textarea id="editor" spellcheck="false" disabled
                 placeholder="Open a file from the sidebar, or create a new one."></textarea>
     </main>

@@ -18,6 +18,14 @@ device, while the browser picker still opens the user's own files.
 back to downloading a copy). Requires a secure origin: `localhost` works,
 `penguin.linux.test` doesn't. After a refresh, Chrome asks once to re-allow
 access to each file.
+**How it's built (PR #2):** Tabs have a `kind`: `workspace` (server API),
+`device` (browser file handle) or `copy` (fallback; Save downloads a copy).
+Device file handles are kept in IndexedDB so those tabs survive a refresh;
+if Chrome has forgotten the permission, the tab shows an "Allow access"
+button, which asks for read and write together so there's one prompt.
+Device files get the same rules as the server: 10 MB limit (the server
+reports it in `/api/files`) and must be valid UTF-8. Copy tabs aren't
+restored after a refresh.
 
 ### Designed with cloud hosting in mind (2026-10-18)
 **Decision:** Keep the app ready to containerize and host (e.g. AWS) later,

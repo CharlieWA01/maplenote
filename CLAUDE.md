@@ -14,7 +14,9 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
   workspace folder. The API is documented in its module docstring.
 - `config.py`: every setting, each overridable by a `MAPLENOTE_*` env var.
 - `static/`: plain HTML/CSS/JS, no build step. `app.js` holds tabs, sidebar
-  and file actions.
+  and file actions. A tab's `kind` says where its file lives: `workspace`
+  (via the server API), `device` (opened with "Open…", read and saved by the
+  browser directly; the server never sees it) or `copy` (fallback).
 
 ## Ground rules
 

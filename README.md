@@ -58,6 +58,19 @@ To use a different folder:
 MAPLENOTE_WORKSPACE=~/Documents python app.py
 ```
 
+### Opening files from anywhere on your device
+
+**Open…** opens any text file your browser can reach: Downloads, Google
+Drive, a USB stick. These tabs are marked **↗**, and saving writes straight
+back to the original file. The browser handles these files directly; they
+never pass through the server.
+
+- Chrome asks permission the first time you save a file, and may ask again
+  (an **Allow access** button) after a refresh.
+- Saving back needs Chrome or Edge at **http://localhost:8000**. Other
+  browsers, or the `penguin.linux.test` address, can still open files, but
+  Save downloads a copy instead.
+
 ## Getting updates
 
 ```bash
@@ -70,7 +83,7 @@ If the server is running, stop it with `Ctrl+C` and start it again to pick up th
 ## Troubleshooting
 
 - **Chromebook: `localhost:8000` doesn't load.** Try **http://penguin.linux.test:8000**
-  instead. If that fails too, start the server with `MAPLENOTE_HOST=0.0.0.0 python app.py`
+  instead (saving files opened with **Open…** won't work there; see above). If that fails too, start the server with `MAPLENOTE_HOST=0.0.0.0 python app.py`
   (still only reachable from your Chromebook).
 - **"Address already in use".** Another program is using port 8000. Pick a different
   one: `MAPLENOTE_PORT=8001 python app.py`.
