@@ -102,6 +102,25 @@ familiar safety net.
 recovery from drafts kept in the browser. No "are you sure?" prompts for
 unsaved work. Deleting a file still asks for confirmation (it can't be undone).
 
+### CodeMirror 6, bundled once and committed (2026-10-18, PR #4)
+**Decision:** Use CodeMirror **6**. The pieces we use are bundled with esbuild
+into one file, `static/vendor/codemirror.js` (a global `CM`), which is
+committed. The recipe (exact pinned versions, entry file, build command)
+lives in `vendor-src/`; license texts in `static/vendor/LICENSE-codemirror.txt`.
+**Why 6 over 5:** 5 is in maintenance mode; 6 is current, better on touch
+screens (Chromebook), and is what Obsidian uses. Its one downside, needing a
+bundling step, only applies when *upgrading* the library: running Maplenote
+still needs just Python, and works offline.
+**How it's used:** one `EditorView` on screen; each tab owns an
+`EditorState` (text, cursor, undo history, find bar), swapped in on tab
+switch, so undo survives switching tabs. A tab is "dirty" when its document
+differs from `savedDoc`, so undoing back to the saved text makes it clean.
+Included: line numbers, history, find & replace (Ctrl+F, plus a Find
+button), highlight matches, word wrap (toggle in the status bar, **on by
+default**, remembered per browser), Tab inserts a tab. Status bar shows
+line/column, selection size, word and line counts.
+**Checked:** an 8 MB, 120,000-line log opens in ~0.2 s and stays responsive.
+
 ### CodeMirror for the editing area (2026-10-17)
 **Decision:** Replace the plain `<textarea>` with CodeMirror in step 4,
 bundled into `static/vendor/` (no CDN). No syntax highlighting in v1.
@@ -109,8 +128,7 @@ bundled into `static/vendor/` (no CDN). No syntax highlighting in v1.
 a textarea (e.g. programmatic replace breaks Ctrl+Z). CodeMirror is mature
 and modular, so syntax highlighting is an easy later add-on.
 **Rejected:** Monaco (VS Code's editor): heavier than needed.
-**Open question:** CodeMirror 5 (single files, no build step) vs 6 (modern,
-needs bundling once); decide in step 4.
+*Version question settled 2026-10-18: CodeMirror 6 (see above).*
 
 ### Markdown preview as a toggle, `.md` only (2026-10-17)
 **Decision:** An Edit/Preview toggle that appears only on `.md` tabs, not a

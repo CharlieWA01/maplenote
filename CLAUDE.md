@@ -20,6 +20,8 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
   Every save goes through `saveTab()`; each tab tracks the file `version`
   it last saw, and saves carry it so changes made elsewhere aren't
   overwritten (the server returns 409 for workspace files).
+  The editing area is CodeMirror 6 (`static/vendor/codemirror.js`, global
+  `CM`): one editor view, and each tab has its own editor state.
 
 ## Ground rules
 
@@ -31,7 +33,9 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
   the server and the user's files share a machine. Nothing goes on the
   public internet without a login.
 - Keep it simple and dependency-light. Vendor frontend libraries into
-  `static/vendor/`; no CDNs (it must work offline).
+  `static/vendor/`; no CDNs (it must work offline). CodeMirror is bundled
+  from `vendor-src/` (see its README); rebuild only when upgrading, and
+  commit the recipe and bundle together.
 - Must run on Python 3.11 (Charlie's Chromebook) and in current Chrome.
 
 ## How we work
@@ -42,6 +46,8 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
   parking lot. Code and docs change together.
 - Test before pushing: run the server against a scratch workspace and drive
   the page in headless Chromium (Playwright is installed in cloud sessions).
+  Type into `.cm-content`; read the text with
+  `CM.EditorView.findFromDOM(document.querySelector('.cm-editor')).state.doc.toString()`.
 
 ## Running it
 
