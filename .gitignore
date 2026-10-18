@@ -1,3 +1,4 @@
 .venv/
 __pycache__/
 *.pyc
+vendor-src/node_modules/

@@ -16,6 +16,7 @@
     <button id="save-button" type="button" disabled>Save</button>
     <button id="rename-button" type="button" disabled>Rename</button>
     <button id="delete-button" type="button" disabled>Delete</button>
+    <button id="find-button" type="button" disabled title="Find and replace (Ctrl+F)">Find</button>
     <span id="status" class="status" role="status"></span>
     <!-- A setting, not an action, so it sits apart from the buttons at the far right. -->
     <label class="toggle" title="Save automatically a moment after you stop typing">
@@ -34,8 +35,15 @@
         <p>Maplenote needs your permission again to open <strong id="reconnect-name"></strong>.</p>
         <button id="reconnect-button" type="button">Allow access</button>
       </div>
-      <textarea id="editor" spellcheck="false" disabled
-                placeholder="Open a file from the sidebar, or create a new one."></textarea>
+      <!-- CodeMirror builds the editor inside this element (see app.js). -->
+      <div id="editor" class="editor"></div>
+      <footer class="statusbar">
+        <span id="cursor-info"></span>
+        <span id="count-info"></span>
+        <label class="toggle" title="Wrap long lines to fit the window">
+          <input id="wrap-toggle" type="checkbox"> Word wrap
+        </label>
+      </footer>
     </main>
   </div>
 
@@ -51,6 +59,8 @@
     </form>
   </dialog>
 
+  <!-- CodeMirror 6, bundled into one file (see vendor-src/README.md). Defines `CM`. -->
+  <script src="/static/vendor/codemirror.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

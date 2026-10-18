@@ -22,6 +22,8 @@ files in one folder on your computer, and you edit them in a browser tab.
 - **`config.py`** holds the settings: workspace folder, port, size limit.
 - **`static/`** is the page itself: all the editing happens in the browser.
   Which tabs you had open is remembered by the browser, so a refresh restores them.
+  The editing area is [CodeMirror 6](https://codemirror.net/), bundled into
+  `static/vendor/codemirror.js` (how it's built: [`vendor-src/`](vendor-src/README.md)).
 
 Plans and design decisions live in [`docs/ROADMAP.md`](docs/ROADMAP.md) and
 [`docs/DECISIONS.md`](docs/DECISIONS.md).
@@ -57,6 +59,15 @@ To use a different folder:
 ```bash
 MAPLENOTE_WORKSPACE=~/Documents python app.py
 ```
+
+### Editing
+
+- **Undo / redo:** Ctrl+Z / Ctrl+Y (each tab keeps its own history).
+- **Find & replace:** the **Find** button or Ctrl+F. Supports match case,
+  regular expressions and whole words; Enter jumps to the next match.
+- **Word wrap:** toggle in the status bar under the editor (on by default).
+- The status bar also shows the cursor's line and column, how much is
+  selected, and the word and line counts.
 
 ### Saving
 

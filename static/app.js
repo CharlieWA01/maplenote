@@ -13,6 +13,10 @@
 // Each tab remembers the "version" of the file it loaded; if the file has changed
 // somewhere else since, the save is refused and a conflict banner lets you choose.
 // While you type, a draft is kept in the browser so a crash can't lose your work.
+//
+// Editing: the editing area is CodeMirror 6 (the global `CM`, from static/vendor/).
+// There is one editor on screen, and each tab has its own CodeMirror *state*: its
+// text, cursor and undo history. Switching tabs swaps the state shown in the editor.
 
 const newButton = document.getElementById("new-button");
 const openButton = document.getElementById("open-button");
@@ -21,11 +25,15 @@ const saveButton = document.getElementById("save-button");
 const autosaveToggle = document.getElementById("autosave-toggle");
 const renameButton = document.getElementById("rename-button");
 const deleteButton = document.getElementById("delete-button");
+const findButton = document.getElementById("find-button");
 const statusText = document.getElementById("status");
 const fileTree = document.getElementById("file-tree");
 const tabBar = document.getElementById("tabs");
 const banner = document.getElementById("banner");
-const editor = document.getElementById("editor");
+const editorContainer = document.getElementById("editor");
+const cursorInfo = document.getElementById("cursor-info");
+const countInfo = document.getElementById("count-info");
+const wrapToggle = document.getElementById("wrap-toggle");
 const reconnectPanel = document.getElementById("reconnect");
 const reconnectName = document.getElementById("reconnect-name");
 const reconnectButton = document.getElementById("reconnect-button");
@@ -35,6 +43,7 @@ const unsavedName = document.getElementById("unsaved-name");
 // Settings remembered in the browser.
 const SESSION_KEY = "maplenote.session";   // which tabs were open
 const AUTOSAVE_KEY = "maplenote.autosave"; // "on" or "off"
+const WRAP_KEY = "maplenote.wrap";         // "on" or "off"
 
 // How long after the last keystroke to keep a draft and autosave.
 const AUTOSAVE_DELAY_MS = 1000;
@@ -49,6 +58,7 @@ let files = [];                  // every file in the workspace
 let tabs = [];                   // open files, see newTab()
 let activeTab = null;            // the tab shown in the editor
 let autosaveEnabled = readSetting(AUTOSAVE_KEY) !== "off";
+let wrapEnabled = readSetting(WRAP_KEY) !== "off";
 const collapsedFolders = new Set();
 
 // ------------------------------------------------------------------ helpers
@@ -109,6 +119,149 @@ async function refreshFileList() {
   renderFileTree();
 }
 
+// ------------------------------------------------------- editor (CodeMirror)
+
+// Colours and fonts for the editor, using the same CSS variables as style.css.
+const editorTheme = CM.EditorView.theme({
+  "&": { height: "100%", backgroundColor: "var(--bg)", color: "var(--text)", fontSize: "14px" },
+  ".cm-scroller": {
+    fontFamily: 'ui-monospace, "Cascadia Code", "DejaVu Sans Mono", monospace',
+    lineHeight: "1.5",
+  },
+  ".cm-content": { padding: "12px 0", caretColor: "var(--accent)" },
+  ".cm-line": { padding: "0 16px 0 8px" },
+  "&.cm-focused .cm-cursor": { borderLeftColor: "var(--accent)" },
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
+    { backgroundColor: "rgb(217 130 43 / 0.28)" },
+  ".cm-gutters": { backgroundColor: "var(--bg)", color: "var(--muted)", border: "none" },
+  ".cm-lineNumbers .cm-gutterElement": { padding: "0 8px 0 16px" },
+  ".cm-activeLine": { backgroundColor: "rgb(255 255 255 / 0.03)" },
+  ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--text)" },
+  ".cm-selectionMatch": { backgroundColor: "rgb(255 255 255 / 0.08)" },
+  // The find & replace bar.
+  ".cm-searchMatch": { backgroundColor: "rgb(217 130 43 / 0.22)", outline: "1px solid rgb(217 130 43 / 0.5)" },
+  ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "rgb(217 130 43 / 0.5)" },
+  ".cm-panels": { backgroundColor: "var(--panel)", color: "var(--text)" },
+  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--border)" },
+  ".cm-panel.cm-search": { padding: "6px 36px 6px 12px", fontFamily: "system-ui, sans-serif", fontSize: "13px" },
+  ".cm-panel.cm-search label": { color: "var(--muted)" },
+  ".cm-panel.cm-search input[type=checkbox]": { accentColor: "var(--accent)" },
+  ".cm-panel.cm-search [name=close]": { color: "var(--muted)", fontSize: "18px", right: "10px", top: "4px" },
+  ".cm-textfield": {
+    backgroundColor: "var(--bg)", color: "var(--text)",
+    border: "1px solid var(--border)", borderRadius: "4px", padding: "3px 6px",
+  },
+  ".cm-textfield:focus": { outline: "none", borderColor: "var(--accent)" },
+  ".cm-button": {
+    backgroundImage: "none", backgroundColor: "var(--bg)", color: "var(--text)",
+    border: "1px solid var(--border)", borderRadius: "4px", padding: "3px 10px",
+  },
+  ".cm-button:hover": { borderColor: "var(--accent)" },
+}, { dark: true });
+
+// Word wrap can be switched on and off, so it lives in a "compartment" that can be
+// swapped out later (CodeMirror's way of changing one part of the configuration).
+const wrapCompartment = new CM.Compartment();
+const wrapExtension = () => (wrapEnabled ? CM.EditorView.lineWrapping : []);
+
+// Everything each tab's editor state is set up with.
+function editorExtensions() {
+  return [
+    CM.lineNumbers(),
+    CM.highlightActiveLineGutter(),
+    CM.highlightActiveLine(),
+    CM.drawSelection(),
+    CM.history(), // undo/redo, kept separately for each tab
+    CM.search({ top: true }), // find & replace bar (Ctrl+F)
+    CM.highlightSelectionMatches(),
+    CM.EditorState.tabSize.of(4),
+    CM.keymap.of([...CM.defaultKeymap, ...CM.historyKeymap, ...CM.searchKeymap, CM.indentWithTab]),
+    wrapCompartment.of(wrapExtension()),
+    CM.EditorView.updateListener.of(onEditorUpdate),
+    editorTheme,
+  ];
+}
+
+const createEditorState = (text) => CM.EditorState.create({ doc: text, extensions: editorExtensions() });
+
+// The one editor on screen. Hidden until a tab is shown in it.
+const view = new CM.EditorView({ parent: editorContainer, state: createEditorState("") });
+
+// The text in a tab, as a plain string.
+const textOf = (tab) => tab.state.doc.toString();
+
+// Set when Maplenote itself changes the text (e.g. reloading a file), so that
+// onEditorUpdate doesn't treat it as typing.
+let changingProgrammatically = false;
+
+// Replace all of a tab's text, keeping the cursor nearby. It's an ordinary edit,
+// so Ctrl+Z can undo it.
+function replaceText(tab, text) {
+  const head = Math.min(tab.state.selection.main.head, text.length);
+  const transaction = { changes: { from: 0, to: tab.state.doc.length, insert: text }, selection: { anchor: head } };
+  if (tab === activeTab && tab.loaded) {
+    changingProgrammatically = true;
+    try {
+      view.dispatch(transaction); // onEditorUpdate stores the new state on the tab
+    } finally {
+      changingProgrammatically = false;
+    }
+  } else {
+    tab.state = tab.state.update(transaction).state;
+  }
+}
+
+// Called by CodeMirror after every change to the editor: typing, undo, cursor moves.
+function onEditorUpdate(update) {
+  const tab = activeTab;
+  if (!tab?.loaded || update.view !== view) return;
+  tab.state = update.state;
+  if (update.docChanged && !changingProgrammatically) {
+    const wasDirty = !update.startState.doc.eq(tab.savedDoc);
+    if (tab.recoveredAt) {
+      tab.recoveredAt = null; // typing counts as keeping the recovered changes
+      renderBanner();
+    }
+    if (isDirty(tab) !== wasDirty) renderTabs(); // the unsaved-changes dot
+    scheduleSave(tab);
+  }
+  if (update.docChanged || update.selectionSet) updateStatusBar();
+}
+
+// Word wrap on/off: reconfigure every tab's state, not just the visible one.
+function setWordWrap(enabled) {
+  wrapEnabled = enabled;
+  writeSetting(WRAP_KEY, enabled ? "on" : "off");
+  const effects = wrapCompartment.reconfigure(wrapExtension());
+  for (const tab of tabs) {
+    if (!tab.state) continue;
+    if (tab === activeTab && tab.loaded) view.dispatch({ effects });
+    else tab.state = tab.state.update({ effects }).state;
+  }
+}
+
+// The status bar under the editor: cursor position, then word and line counts.
+// Counting words means reading the whole text, so it waits for a pause in typing.
+let countTimer = null;
+function updateStatusBar() {
+  const tab = activeTab;
+  clearTimeout(countTimer);
+  if (!tab?.loaded) {
+    cursorInfo.textContent = countInfo.textContent = "";
+    return;
+  }
+  const range = tab.state.selection.main;
+  const line = tab.state.doc.lineAt(range.head);
+  const selected = range.empty ? "" : ` (${(range.to - range.from).toLocaleString()} selected)`;
+  cursorInfo.textContent = `Ln ${line.number}, Col ${range.head - line.from + 1}${selected}`;
+  countTimer = setTimeout(() => {
+    if (tab !== activeTab) return;
+    const words = textOf(tab).match(/\S+/g)?.length ?? 0;
+    const lines = tab.state.doc.lines;
+    countInfo.textContent = `${words.toLocaleString()} word${words === 1 ? "" : "s"} · ${lines.toLocaleString()} line${lines === 1 ? "" : "s"}`;
+  }, 150);
+}
+
 // ---------------------------------------------------- browser storage (IndexedDB)
 
 // Two stores in the browser's IndexedDB (localStorage only holds small text):
@@ -141,7 +294,7 @@ const forgetDraft = (key) => browserStore("drafts", "readwrite", (store) => stor
 
 function storeDraft(tab) {
   if (tab.kind === "copy") return; // copy tabs can't be reopened, so a draft wouldn't help
-  const draft = { content: tab.content, baseVersion: tab.version, savedAt: Date.now() };
+  const draft = { content: textOf(tab), baseVersion: tab.version, savedAt: Date.now() };
   return browserStore("drafts", "readwrite", (store) => store.put(draft, tab.key)).catch(() => {});
 }
 
@@ -149,8 +302,8 @@ function storeDraft(tab) {
 async function applyDraft(tab) {
   const draft = await loadDraft(tab.key);
   if (!draft) return;
-  if (draft.content === tab.savedContent) return forgetDraft(tab.key);
-  tab.content = draft.content;
+  if (draft.content === tab.savedDoc.toString()) return forgetDraft(tab.key);
+  replaceText(tab, draft.content); // an ordinary edit, so Ctrl+Z goes back to the saved file
   tab.recoveredAt = draft.savedAt;
   // If the file has changed since the draft was made, saving the draft must not
   // overwrite that change: keep the old version so the save raises a conflict.
@@ -242,7 +395,8 @@ fileInput.addEventListener("change", async () => {
 async function loadDeviceTab(tab, { ask }) {
   if (!(await hasPermission(tab.handle, ask ? "readwrite" : "read", ask))) return false;
   const file = await tab.handle.getFile();
-  tab.content = tab.savedContent = await readDeviceFile(file);
+  tab.state = createEditorState(await readDeviceFile(file));
+  tab.savedDoc = tab.state.doc;
   tab.version = file.lastModified;
   tab.loaded = true;
   await applyDraft(tab);
@@ -262,24 +416,28 @@ reconnectButton.addEventListener("click", async () => {
 
 // key:         unique id for the tab (the path for workspace files)
 // name:        what the tab shows
+// state:       the CodeMirror state: text, cursor and undo history
+// savedDoc:    the text as it was last loaded or saved, to tell if there are unsaved edits
 // version:     the version of the file this tab last loaded or saved
 // conflict:    set when the file changed elsewhere: { theirVersion }
 // recoveredAt: set when the tab holds a recovered draft (the draft's time)
 function newTab({ kind, key, name, content = "", version = null, loaded = true }) {
+  const state = createEditorState(content);
   return {
-    kind, key, name, content, version, loaded,
-    savedContent: content,
+    kind, key, name, state, version, loaded,
+    savedDoc: state.doc,
     conflict: null,
     recoveredAt: null,
     saving: false,
     saveAgain: false,
     timer: null,
-    selection: 0,
     scroll: 0,
   };
 }
 
-const isDirty = (tab) => tab.content !== tab.savedContent;
+// CodeMirror's documents can be compared directly; undoing back to the saved text
+// makes a tab clean again.
+const isDirty = (tab) => !tab.state.doc.eq(tab.savedDoc);
 const findTab = (key) => tabs.find((tab) => tab.key === key);
 
 // Open a workspace file in a tab (or switch to its tab if it's already open).
@@ -303,36 +461,26 @@ function activateTab(tab) {
   rememberEditorPosition();
   activeTab = tab;
   reconnectPanel.hidden = tab.loaded;
-  editor.hidden = !tab.loaded;
+  editorContainer.hidden = !tab.loaded;
   if (tab.loaded) {
-    editor.value = tab.content;
-    editor.disabled = false;
-    editor.setSelectionRange(tab.selection, tab.selection);
-    editor.scrollTop = tab.scroll;
-    editor.focus();
+    view.setState(tab.state); // its text, cursor, undo history and find bar
+    view.scrollDOM.scrollTop = tab.scroll;
+    view.focus();
   } else {
     reconnectName.textContent = tab.name;
   }
   document.title = `${tab.name} · Maplenote`;
   render();
+  updateStatusBar();
   saveSession();
   checkForOutsideChanges(tab);
 }
 
-// Keep the cursor and scroll position, so switching back lands where you left off.
+// The cursor is part of each tab's state; the scroll position isn't, so keep it
+// separately and switching back lands where you left off.
 function rememberEditorPosition() {
   if (!activeTab?.loaded) return;
-  activeTab.selection = editor.selectionStart;
-  activeTab.scroll = editor.scrollTop;
-}
-
-// Put new content into a tab (e.g. after reloading), keeping the cursor nearby.
-function replaceContent(tab, content) {
-  tab.content = content;
-  if (tab !== activeTab) return;
-  const cursor = Math.min(editor.selectionStart, content.length);
-  editor.value = content;
-  editor.setSelectionRange(cursor, cursor);
+  activeTab.scroll = view.scrollDOM.scrollTop;
 }
 
 // Would this tab's unsaved edits be saved automatically? (Copy tabs never autosave.)
@@ -444,8 +592,8 @@ async function saveTab(tab, { manual = false } = {}) {
   if (!tab.loaded) return;
   if (tab.kind === "copy") {
     if (manual) {
-      downloadCopy(tab.name, tab.content);
-      tab.savedContent = tab.content;
+      downloadCopy(tab.name, textOf(tab));
+      tab.savedDoc = tab.state.doc;
       showStatus(`Downloaded a copy of ${tab.name} ${clockTime()}`);
       render();
     }
@@ -466,13 +614,16 @@ async function saveTab(tab, { manual = false } = {}) {
   clearTimeout(tab.timer);
   tab.recoveredAt = null;
   tab.saving = true;
-  const content = tab.content;
+  // CodeMirror documents never change in place, so this is a snapshot of what we're
+  // saving, even if typing continues while the save is on its way.
+  const doc = tab.state.doc;
+  const content = doc.toString();
   if (tab === activeTab) showStatus("Saving…");
   try {
     tab.version = tab.kind === "workspace"
       ? await saveToWorkspace(tab, content)
       : await saveToDevice(tab, content, manual);
-    tab.savedContent = content;
+    tab.savedDoc = doc;
     if (!isDirty(tab)) forgetDraft(tab.key);
     if (tab === activeTab) showStatus(`Saved ✓ ${clockTime()}`);
   } catch (error) {
@@ -573,8 +724,8 @@ async function checkForOutsideChanges(tab) {
 async function loadTheirs(tab) {
   const current = await readCurrent(tab);
   clearTimeout(tab.timer);
-  replaceContent(tab, current.content);
-  Object.assign(tab, { savedContent: current.content, version: current.version, conflict: null, recoveredAt: null });
+  replaceText(tab, current.content);
+  Object.assign(tab, { savedDoc: tab.state.doc, version: current.version, conflict: null, recoveredAt: null });
   forgetDraft(tab.key);
   render();
 }
@@ -589,7 +740,7 @@ async function keepMine(tab) {
 // Conflict choice 3 (workspace files): save this tab's version as a new file, then load theirs.
 async function saveMineAsCopy(tab) {
   const copyPath = await createConflictCopy(tab.key);
-  await api("PUT", fileUrl(copyPath), { content: tab.content });
+  await api("PUT", fileUrl(copyPath), { content: textOf(tab) });
   await loadTheirs(tab);
   await refreshFileList();
   showStatus(`Your version was saved as ${copyPath}`);
@@ -618,7 +769,7 @@ async function keepRecovered(tab) {
 }
 
 function discardRecovered(tab) {
-  replaceContent(tab, tab.savedContent);
+  replaceText(tab, tab.savedDoc.toString());
   tab.recoveredAt = null;
   // The draft may have been made against an older version; check for a newer one.
   forgetDraft(tab.key);
@@ -693,6 +844,7 @@ function render() {
   saveButton.disabled = !activeTab?.loaded;
   renameButton.disabled = !canRenameOrDelete(activeTab);
   deleteButton.disabled = !canRenameOrDelete(activeTab);
+  findButton.disabled = !activeTab?.loaded;
 }
 
 function renderTabs() {
@@ -845,18 +997,12 @@ autosaveToggle.addEventListener("change", () => {
   if (autosaveEnabled) tabs.filter(isDirty).forEach((tab) => saveTab(tab));
 });
 
-editor.addEventListener("input", () => {
-  const tab = activeTab;
-  if (!tab?.loaded) return;
-  const wasDirty = isDirty(tab);
-  tab.content = editor.value;
-  if (tab.recoveredAt) {
-    tab.recoveredAt = null; // typing counts as keeping the recovered changes
-    renderBanner();
-  }
-  if (isDirty(tab) !== wasDirty) renderTabs(); // the unsaved-changes dot
-  scheduleSave(tab);
-});
+findButton.addEventListener("click", () => CM.openSearchPanel(view));
+
+wrapToggle.checked = wrapEnabled;
+wrapToggle.addEventListener("change", () => setWordWrap(wrapToggle.checked));
+
+// Typing is handled by onEditorUpdate (in the editor section above).
 
 // Coming back to the window: check whether the file changed while you were away.
 window.addEventListener("focus", () => checkForOutsideChanges(activeTab));
