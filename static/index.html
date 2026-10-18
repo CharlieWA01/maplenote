@@ -14,6 +14,9 @@
     <!-- Fallback for browsers that can't save back to the original file. -->
     <input id="file-input" type="file" multiple hidden accept=".txt,.md,.log,text/plain,text/markdown">
     <button id="save-button" type="button" disabled>Save</button>
+    <label class="toggle" title="Save automatically a moment after you stop typing">
+      <input id="autosave-toggle" type="checkbox"> Autosave
+    </label>
     <button id="rename-button" type="button" disabled>Rename</button>
     <button id="delete-button" type="button" disabled>Delete</button>
     <span id="status" class="status" role="status"></span>
@@ -24,6 +27,8 @@
 
     <main class="editor-pane">
       <div id="tabs" class="tabs" role="tablist"></div>
+      <!-- Conflict and crash-recovery messages for the active tab. -->
+      <div id="banner" class="banner" role="alert" hidden></div>
       <div id="reconnect" class="notice" hidden>
         <p>Maplenote needs your permission again to open <strong id="reconnect-name"></strong>.</p>
         <button id="reconnect-button" type="button">Allow access</button>

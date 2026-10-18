@@ -57,6 +57,32 @@ principle: enforce rules on the server.
 **Why:** Simple, and a per-device tab layout makes sense. File contents are
 always loaded fresh from the server.
 
+### Autosave, crash recovery and conflict detection (2026-10-18, PR #3)
+**Decision:**
+- **Autosave** about 1 s after typing stops, **on by default** with a toolbar
+  toggle (remembered per browser). The Save button stays either way.
+- **Crash recovery:** while you type, a draft of each tab is kept in the
+  browser's IndexedDB. If a save never happened (server stopped, crash, or
+  autosave off and the page closed), reopening offers "Keep them / Discard".
+- **Conflict detection:** each tab remembers the *version* of the file it
+  loaded. Workspace versions are a fingerprint (hash) of the contents,
+  computed by the server, which **refuses** a save whose `base_version` is
+  out of date (409). Device files use their last-modified time, checked by
+  the browser. On a conflict, a banner offers **Load their version / Keep
+  mine / Save mine as a copy** (copy for workspace files only).
+- **Quiet reload:** if a file changed elsewhere and this tab has no unsaved
+  edits, it just reloads when you switch to it or return to the window.
+**Why:** No lost work, and no silent overwrites, which matter most once
+Maplenote is used from several devices against one server.
+**Details:** All saving goes through `saveTab()` in `app.js`. A recovered
+draft keeps the version it was made against, so restoring it after the file
+changed raises a conflict instead of overwriting. Copy tabs never autosave
+(each save would be a download). Closing a tab saves it first when autosave
+is on and discards edits when it's off. With autosave off, Charlie chose
+manual saving, so no "are you sure?" prompt appears.
+**Rejected:** Per-file autosave settings (parked); automatic merging of
+conflicting edits (complex, and a wrong merge is worse than asking).
+
 ### Autosave, no "unsaved changes" prompts (2026-10-17)
 **Decision:** Step 3 adds autosave about 1 s after typing stops, plus crash
 recovery from drafts kept in the browser. No "are you sure?" prompts for

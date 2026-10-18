@@ -9,8 +9,8 @@ Status: ✅ done · 🚧 in progress · ⏭️ next · ⬜ planned
 | 1 | Flask server + bare editor: open, edit, save one file | ✅ |
 | 2 | File sidebar, tabs, pinned scratch pad, tabs restored on refresh | ✅ |
 | 2b | **"Open…" button for local files** (Downloads, Google Drive, USB) via the browser's file picker; saves write back to the original file | ✅ |
-| 3 | Autosave (~1 s after typing stops), crash recovery (drafts kept in the browser), edit-conflict detection | ⏭️ |
-| 4 | Switch to CodeMirror: undo/redo that survives tab switches, find & replace, line numbers, word-wrap toggle, word/line count | ⬜ |
+| 3 | Autosave (~1 s after typing stops), crash recovery (drafts kept in the browser), edit-conflict detection; autosave can be switched off | ✅ |
+| 4 | Switch to CodeMirror: undo/redo that survives tab switches, find & replace, line numbers, word-wrap toggle, word/line count | ⏭️ |
 | 5 | Markdown preview: Edit/Preview toggle, `.md` files only | ⬜ |
 | 6 | Polish: theme details, README | ⬜ |
 
@@ -42,12 +42,17 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Light theme / theme toggle
 - Sidebar right-click menu, drag-and-drop to move files
 - Track features and bugs as GitHub Issues once the backlog grows
+- Per-file autosave exceptions (e.g. never autosave config files)
+- Split `static/app.js` into smaller modules as it grows
 
 ## Known limitations
 
 - Files with Windows line endings (CRLF) are saved back with Linux endings (LF).
 - Deleting or renaming the last file in a folder leaves the empty folder behind (it's hidden from the sidebar).
 - Undo history is lost when switching tabs (fixed by CodeMirror in step 4).
-- Until autosave (step 3), closing a tab or refreshing loses unsaved edits.
 - Files opened from the device (↗ tabs) can't be renamed or deleted from Maplenote.
-- Saving a device file the first time shows Chrome's "allow editing?" prompt.
+- Saving a device file the first time shows Chrome's "allow editing?" prompt. Until it's
+  allowed, autosave pauses for that file and asks for one click on Save.
+- Device files (↗) detect outside changes by their "last modified" time, so a change that
+  keeps the same time (very rare) could go unnoticed. Workspace files compare contents.
+- With autosave off, closing a tab discards its unsaved edits (on purpose: no prompts).
