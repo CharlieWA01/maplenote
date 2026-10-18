@@ -78,12 +78,26 @@ Maplenote is used from several devices against one server.
 draft keeps the version it was made against, so restoring it after the file
 changed raises a conflict instead of overwriting. Copy tabs never autosave
 (each save would be a download). Closing a tab saves it first when autosave
-is on and discards edits when it's off. With autosave off, Charlie chose
-manual saving, so no "are you sure?" prompt appears.
+is on; see the next entry for when it's off.
 **Rejected:** Per-file autosave settings (parked); automatic merging of
 conflicting edits (complex, and a wrong merge is worse than asking).
 
+### Unsaved-changes warnings when autosave is off (2026-10-18, PR #3 review)
+**Decision:** When a tab's edits won't be autosaved (autosave off, or a copy
+tab), closing it asks **"Save changes to X before closing?"** with
+**Save / Don't save / Cancel** (Maplenote's own dialog; the browser's
+`confirm()` only offers OK/Cancel). Closing or refreshing the browser tab
+in that state shows Chrome's standard "Leave site?" warning (pages can't
+change its wording). With autosave on, there are still no prompts: closing
+saves first.
+**Why:** Charlie, reviewing PR #3: silently discarding edits goes against
+normal editor practice. The original "no alerts" choice assumed autosave
+was always on; once it became optional, the "off" case needed the
+familiar safety net.
+**Supersedes:** part of the entry below.
+
 ### Autosave, no "unsaved changes" prompts (2026-10-17)
+*Partly superseded (2026-10-18): prompts now appear when autosave is off; see above.*
 **Decision:** Step 3 adds autosave about 1 s after typing stops, plus crash
 recovery from drafts kept in the browser. No "are you sure?" prompts for
 unsaved work. Deleting a file still asks for confirmation (it can't be undone).

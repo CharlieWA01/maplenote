@@ -71,6 +71,9 @@ you stop typing. **Save** always saves right away. Either way:
   overwrite it. A bar above the editor lets you **load their version**, **keep
   yours**, or **save yours as a copy** (`name (conflict).md`). If you had no
   unsaved edits, it simply reloads the new version.
+- **Closing with unsaved edits:** with autosave on, closing a tab saves it.
+  With autosave off, Maplenote asks **Save / Don't save / Cancel**, and the
+  browser warns before you close or refresh the page.
 
 ### Opening files from anywhere on your device
 

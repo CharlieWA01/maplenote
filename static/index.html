@@ -39,6 +39,18 @@
     </main>
   </div>
 
+  <!-- Asked when closing a tab that has unsaved edits and won't be autosaved. -->
+  <dialog id="unsaved-dialog" class="dialog">
+    <form method="dialog">
+      <p>Save changes to <strong id="unsaved-name"></strong> before closing?</p>
+      <div class="dialog-buttons">
+        <button value="save" type="submit" autofocus>Save</button>
+        <button value="discard" type="submit">Don't save</button>
+        <button value="cancel" type="submit">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

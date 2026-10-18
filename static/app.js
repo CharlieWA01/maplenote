@@ -29,6 +29,8 @@ const editor = document.getElementById("editor");
 const reconnectPanel = document.getElementById("reconnect");
 const reconnectName = document.getElementById("reconnect-name");
 const reconnectButton = document.getElementById("reconnect-button");
+const unsavedDialog = document.getElementById("unsaved-dialog");
+const unsavedName = document.getElementById("unsaved-name");
 
 // Settings remembered in the browser.
 const SESSION_KEY = "maplenote.session";   // which tabs were open
@@ -333,18 +335,42 @@ function replaceContent(tab, content) {
   editor.setSelectionRange(cursor, cursor);
 }
 
-// Close a tab. With autosave on, unsaved edits are saved first; with it off they're
-// discarded (you chose to save by hand). Pass discard: true to skip saving entirely.
+// Would this tab's unsaved edits be saved automatically? (Copy tabs never autosave.)
+const autosaves = (tab) => autosaveEnabled && tab.kind !== "copy";
+
+// Ask "Save changes before closing?" Resolves to "save", "discard" or "cancel".
+function askToSave(tab) {
+  unsavedName.textContent = tab.name;
+  unsavedDialog.returnValue = "";
+  unsavedDialog.showModal();
+  return new Promise((resolve) => {
+    // Pressing Escape closes the dialog with no value, which counts as Cancel.
+    unsavedDialog.addEventListener("close", () => resolve(unsavedDialog.returnValue || "cancel"), { once: true });
+  });
+}
+
+// Close a tab. Unsaved edits are saved first when the tab autosaves; otherwise you're
+// asked whether to save them. Pass discard: true to close without saving or asking.
 async function closeTab(tab, { discard = false } = {}) {
   if (tab.key === scratchPath) return;
   clearTimeout(tab.timer);
-  if (!discard && autosaveEnabled && tab.kind !== "copy" && isDirty(tab)) {
-    tab.recoveredAt = null; // closing counts as keeping recovered changes
-    await saveTab(tab, { manual: true }); // closing is a click, so a permission prompt may show
-    if (isDirty(tab)) {
-      if (tab !== activeTab) activateTab(tab);
-      showStatus(`Couldn't save ${tab.name}, so it's still open. Turn off Autosave to close it without saving.`, true);
-      return;
+  if (!discard && isDirty(tab)) {
+    let choice = "save";
+    if (!autosaves(tab)) {
+      if (tab !== activeTab) activateTab(tab); // show what you're being asked about
+      choice = await askToSave(tab);
+    }
+    if (choice === "cancel") return;
+    if (choice === "save") {
+      tab.recoveredAt = null; // closing counts as keeping recovered changes
+      await saveTab(tab, { manual: true }); // closing is a click, so a permission prompt may show
+      if (isDirty(tab)) {
+        if (tab !== activeTab) activateTab(tab);
+        showStatus(`Couldn't save ${tab.name}, so it's still open.`, true);
+        return;
+      }
+    } else {
+      showStatus(`Closed ${tab.name} without saving`);
     }
   }
   forgetDraft(tab.key);
@@ -834,6 +860,13 @@ editor.addEventListener("input", () => {
 
 // Coming back to the window: check whether the file changed while you were away.
 window.addEventListener("focus", () => checkForOutsideChanges(activeTab));
+
+// Leaving the page (closing the browser tab, refreshing) with edits that won't be
+// autosaved: ask the browser to show its standard "Leave site?" warning. Browsers
+// don't let pages choose that wording.
+window.addEventListener("beforeunload", (event) => {
+  if (tabs.some((tab) => isDirty(tab) && (!autosaves(tab) || tab.conflict))) event.preventDefault();
+});
 
 // Leaving the page: keep drafts of anything unsaved, as a last line of defence.
 window.addEventListener("pagehide", () => tabs.filter(isDirty).forEach(storeDraft));

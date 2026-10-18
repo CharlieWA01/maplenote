@@ -55,4 +55,3 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   allowed, autosave pauses for that file and asks for one click on Save.
 - Device files (↗) detect outside changes by their "last modified" time, so a change that
   keeps the same time (very rare) could go unnoticed. Workspace files compare contents.
-- With autosave off, closing a tab discards its unsaved edits (on purpose: no prompts).

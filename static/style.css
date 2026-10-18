@@ -200,6 +200,21 @@ button:disabled { opacity: 0.5; cursor: default; }
 .banner.warning { box-shadow: inset 3px 0 0 var(--error); }
 .banner.info { box-shadow: inset 3px 0 0 var(--accent); }
 
+/* ---- "Save changes?" dialog ---- */
+
+.dialog {
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 16px 20px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+.dialog p { margin: 0 0 16px; }
+.dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-buttons [value="save"] { border-color: var(--accent); }
+
 /* ---- "Allow access" panel for device files after a refresh ---- */
 
 .notice {
