@@ -22,8 +22,9 @@ files in one folder on your computer, and you edit them in a browser tab.
 - **`config.py`** holds the settings: workspace folder, port, size limit.
 - **`static/`** is the page itself: all the editing happens in the browser.
   Which tabs you had open is remembered by the browser, so a refresh restores them.
-  The editing area is [CodeMirror 6](https://codemirror.net/), bundled into
-  `static/vendor/codemirror.js` (how it's built: [`vendor-src/`](vendor-src/README.md)).
+  The editing area is [CodeMirror 6](https://codemirror.net/) and the Markdown
+  preview uses [markdown-it](https://github.com/markdown-it/markdown-it), both
+  bundled into `static/vendor/` (how they're built: [`vendor-src/`](vendor-src/README.md)).
 
 Plans and design decisions live in [`docs/ROADMAP.md`](docs/ROADMAP.md) and
 [`docs/DECISIONS.md`](docs/DECISIONS.md).
@@ -68,6 +69,15 @@ MAPLENOTE_WORKSPACE=~/Documents python app.py
 - **Word wrap:** toggle in the status bar under the editor (on by default).
 - The status bar also shows the cursor's line and column, how much is
   selected, and the word and line counts.
+
+### Markdown preview
+
+Markdown files (`.md`) get an **Edit | Preview** switch at the right end of
+the tab row. Preview shows the formatted note: headings, lists, `- [ ]`
+checkboxes, tables, code blocks, quotes and links. Web links open in a new
+browser tab. Each tab remembers which mode it's in.
+
+For safety, HTML written inside a note is shown as text rather than run.
 
 ### Saving
 

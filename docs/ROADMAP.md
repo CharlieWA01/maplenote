@@ -11,8 +11,8 @@ Status: ✅ done · 🚧 in progress · ⏭️ next · ⬜ planned
 | 2b | **"Open…" button for local files** (Downloads, Google Drive, USB) via the browser's file picker; saves write back to the original file | ✅ |
 | 3 | Autosave (~1 s after typing stops), crash recovery (drafts kept in the browser), edit-conflict detection; autosave can be switched off | ✅ |
 | 4 | Switch to CodeMirror: undo/redo that survives tab switches, find & replace, line numbers, word-wrap toggle, word/line count | ✅ |
-| 5 | Markdown preview: Edit/Preview toggle, `.md` files only | ⏭️ |
-| 6 | Polish: theme details, README | ⬜ |
+| 5 | Markdown preview: Edit/Preview toggle, `.md` files only | ✅ |
+| 6 | Polish: theme details, README | ⏭️ |
 
 ## Cloud-ready (before hosting anywhere)
 
@@ -44,6 +44,10 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Track features and bugs as GitHub Issues once the backlog grows
 - Per-file autosave exceptions (e.g. never autosave config files)
 - Split `static/app.js` into smaller modules as it grows
+- Markdown preview: tick checkboxes by clicking them (edits the `[ ]` in the text)
+- Markdown preview: links to other notes (`[x](ideas.md)`) open them in a tab
+- Markdown preview: show images stored in the workspace
+- Ctrl+E to switch between Edit and Preview (as in Obsidian)
 
 ## Known limitations
 

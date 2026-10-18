@@ -51,6 +51,30 @@ def check_host():
         abort(403, f"Host '{hostname}' is not allowed. Add it to ALLOWED_HOSTS in config.py.")
 
 
+# Rules the browser enforces on the page, as a second line of defence for the
+# Markdown preview (which turns file contents into HTML): only run scripts and
+# load styles from this server, never in a frame on another site. Images may
+# come from anywhere, so Markdown can show pictures from the web.
+# ('unsafe-inline' for styles is needed because CodeMirror adds its own <style> tags.)
+CONTENT_SECURITY_POLICY = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src * data: blob:",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+])
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 def resolve_in_workspace(rel_path):
     """Turn a path sent by the browser into a real path on disk.
 

@@ -1,15 +1,18 @@
 {
   "name": "maplenote-vendor",
   "private": true,
-  "description": "Recipe for static/vendor/codemirror.js. Only needed when upgrading CodeMirror; running Maplenote doesn't need Node.",
+  "description": "Recipe for the bundles in static/vendor/. Only needed when upgrading a library; running Maplenote doesn't need Node.",
   "scripts": {
-    "build": "esbuild codemirror-entry.js --bundle --minify --format=iife --global-name=CM --legal-comments=inline --outfile=../static/vendor/codemirror.js"
+    "build": "npm run build:codemirror && npm run build:markdown",
+    "build:codemirror": "esbuild codemirror-entry.js --bundle --minify --format=iife --global-name=CM --legal-comments=inline --outfile=../static/vendor/codemirror.js",
+    "build:markdown": "esbuild markdown-entry.js --bundle --minify --format=iife --global-name=MD --legal-comments=inline --outfile=../static/vendor/markdown-it.js"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
     "@codemirror/search": "6.7.2",
     "@codemirror/state": "6.7.6",
-    "@codemirror/view": "6.43.14"
+    "@codemirror/view": "6.43.14",
+    "markdown-it": "15.0.2"
   },
   "devDependencies": {
     "esbuild": "0.28.2"
