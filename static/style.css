@@ -13,6 +13,8 @@
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   margin: 0;
@@ -160,9 +162,25 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tab.dirty .tab-close::before { content: "●"; }
 .tab.dirty:hover .tab-close::before,
 .tab:not(.dirty) .tab-close::before { content: "✕"; }
+/* Files opened from the device (not the workspace) get a small marker. */
+.tab.device .tab-name::before { content: "↗ "; color: var(--accent); }
+
 .tab.pinned .tab-close { visibility: hidden; }
 .tab.pinned.dirty .tab-close { visibility: visible; pointer-events: none; }
 .tab.pinned.dirty:hover .tab-close::before { content: "●"; }
+
+/* ---- "Allow access" panel for device files after a refresh ---- */
+
+.notice {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.notice strong { color: var(--text); }
 
 /* ---- Editor ---- */
 

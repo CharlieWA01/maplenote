@@ -7,7 +7,8 @@ The server has two jobs:
 All the editing happens in the browser; the server just moves text to and from disk.
 
 API
-  GET    /api/files               -> {"files": ["notes.md", ...], "scratch": "scratch.txt"}
+  GET    /api/files               -> {"files": ["notes.md", ...], "scratch": "scratch.txt",
+                                      "max_file_bytes": 10485760}
   GET    /api/file?path=notes.md  -> {"path": "notes.md", "content": "..."}
   PUT    /api/file?path=notes.md  with body {"content": "..."}  -> saves the file
   POST   /api/file?path=notes.md  -> creates a new, empty file (409 if it exists)
@@ -93,7 +94,12 @@ def list_files():
         for name in filenames:
             if not name.startswith("."):
                 files.append(relative(Path(folder) / name))
-    return jsonify(files=sorted(files, key=str.lower), scratch=relative(SCRATCH))
+    return jsonify(
+        files=sorted(files, key=str.lower),
+        scratch=relative(SCRATCH),
+        # The page applies the same limit to files opened from the user's device.
+        max_file_bytes=config.MAX_FILE_BYTES,
+    )
 
 
 @app.get("/api/file")
