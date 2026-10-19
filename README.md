@@ -142,6 +142,10 @@ python -m pytest tests/test_api.py      # just the API tests, under a second
   one runs against a fake S3 (the `moto` library), so no AWS account is used.
 - `tests/browser/`: real scenarios in Chromium: editing, conflicts, crash
   recovery, the unsaved-changes dialog, device files, the Markdown preview.
+- `tests/test_real_s3.py`: the same storage code against the real S3 bucket
+  in the AWS sandbox account. Skipped everywhere except the
+  `aws-sandbox-check` workflow, which signs in to AWS first (see
+  `docs/runbooks/aws-sandbox-check.md`).
 
 ## Getting updates
 

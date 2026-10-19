@@ -31,9 +31,10 @@ Needs `cloud-homelab` Phase 2 first: Terraform, the S3 backend, GitHub OIDC.
 
 | Step | Status |
 |------|--------|
-| Infrastructure in Terraform: S3 bucket for files, ECR repository, Lambda, HTTPS endpoint (API Gateway or Lambda function URL: decide then), Cognito | ⬜ |
+| Sandbox S3 bucket for files (Terraform in `cloud-homelab`) and an `aws-sandbox-check` workflow that signs in via OIDC and runs the storage code against it | 🚧 |
+| Infrastructure in Terraform: ECR repository, Lambda, HTTPS endpoint (API Gateway or Lambda function URL: decide then), Cognito | ⬜ |
 | Login in the app (Cognito); required before anything is publicly reachable | ⬜ |
-| Deploy from GitHub Actions via OIDC (no stored AWS keys) | ⬜ |
+| Deploy from GitHub Actions via OIDC (no stored AWS keys); sign-in itself is proven by `aws-sandbox-check` | ⬜ |
 
 ## Parking lot
 
