@@ -36,17 +36,30 @@ jobs:
           set -o pipefail
           python -m pytest --browser-channel chromium --tracing retain-on-failure 2>&1 | tee pytest-output.txt
 
-      # Show each failing test as an annotation on the PR, readable without
-      # opening the full log.
+      # Show failures as annotations on the PR, readable without opening the
+      # full log: the summary, the complete report of the first failure (GitHub
+      # shows at most 10 annotations per step), then the failing test names.
       - name: Report failing tests on the PR
         if: failure()
+        shell: python
         run: |
-          grep -E '^(FAILED|ERROR) ' pytest-output.txt | while read -r line; do
-            echo "::error title=Test failed::$line"
-          done || true
-          grep -E '^E  ' pytest-output.txt | head -20 | while read -r line; do
-            echo "::error title=Failure detail::$line"
-          done || true
+          import re
+          lines = open("pytest-output.txt", encoding="utf-8", errors="replace").read().splitlines()
+          lines = [l for l in lines if not l.startswith("INFO ")]
+
+          def annotate(title, text):
+              text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title={title}::{text}")
+
+          summary = [l for l in lines if re.match(r"^=*\s*\d+ (passed|failed|error)", l)]
+          annotate("Test summary", summary[-1] if summary else "pytest did not finish")
+          headers = [i for i, l in enumerate(lines) if re.match(r"_{3,} .* _{3,}$", l)]
+          if headers:
+              first = headers[0]
+              stop = headers[1] if len(headers) > 1 else first + 150
+              annotate("First failure", "\n".join(lines[first:stop][:150]))
+          for line in [l for l in lines if re.match(r"(FAILED|ERROR) ", l)][:7]:
+              annotate("Test failed", line)
 
       # If a browser test fails, keep a step-by-step recording of it.
       # Open it with: python -m playwright show-trace <file>.zip
