@@ -207,3 +207,31 @@ record Charlie's own.
 **Trade-offs:** the history workflow commits to `main` after each merge, so
 `git pull` after merging brings down one extra commit. The standard is
 copied between repos, so it has to be kept in sync by hand for now.
+
+## 2026-10-19: Host on AWS as a Docker image running on Lambda
+**Decision:** Package Maplenote as a Docker image (Flask + gunicorn + AWS's
+Lambda Web Adapter) and run it on **AWS Lambda**, with files in **S3** and
+login through **Cognito**. The same image runs locally, on the planned
+Proxmox homelab, or on an always-on container service later if needed.
+**Alternatives:**
+- *Always-on container* (ECS Fargate, App Runner, EC2): Flask unchanged, no
+  cold starts or payload limits, room for live sync. But it bills around the
+  clock: roughly $9/month for the smallest Fargate task plus about $3.60 for a
+  public IPv4 address or $16+ for a load balancer, against a $10/month budget
+  and `cloud-homelab`'s "serverless first, ask before hourly costs" rule.
+- *Plain Lambda from a zip file* with a WSGI adapter: cheapest and simplest,
+  but no Docker practice and less portable.
+**Why:** serverless pricing (cents a month for one user) with container
+portability and Docker practice; almost no Flask changes; a ready exit path to
+Fargate or the homelab if Lambda's limits ever bite.
+**Trade-offs:** Lambda requests and responses are limited to about 6 MB, so
+the cloud file limit becomes 5 MB (configurable; 10 MB stays locally).
+Occasional cold starts (up to a second or two after idle). No long-lived
+connections, so live sync between devices would need a rethink. The image is
+stored in ECR (cents a month). Prices quoted are approximate, to be checked
+when the infrastructure is designed.
+**Open for Phase 3:** API Gateway vs. a Lambda function URL in front;
+whether Maplenote's Terraform lives in this repo or in `cloud-homelab`.
+**Supersedes:** the earlier roadmap items "Production web server (gunicorn)
+instead of Flask's dev server" and "Deploy to AWS or a simpler host; pick based
+on cost" (gunicorn stays, inside the image).
