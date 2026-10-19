@@ -1,7 +1,7 @@
 # Journal
 
 One file per work session or topic, named `YYYY-MM-DD-<topic>.md`.
-Claude writes the factual parts; the last section is Charlie's.
+Claude writes them as part of each task.
 See `docs/DOCS-STANDARD.md`.
 
 ## Template
@@ -23,7 +23,4 @@ Tests run and what they showed; what Charlie checked on real hardware.
 
 ## Impact
 What changed for the user (and any cost, complexity or risk added).
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_
 ```

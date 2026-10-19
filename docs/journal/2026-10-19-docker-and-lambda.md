@@ -102,6 +102,3 @@ page and used Maplenote on AWS: notes saved to the S3 bucket's `notes/`
 folder, served by Lambda, deployed by GitHub with no stored keys. Every
 `deploy-sandbox` run since the function existed has passed its outside
 check (401 without the password).
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

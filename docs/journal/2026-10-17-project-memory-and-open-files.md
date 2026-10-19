@@ -64,8 +64,5 @@ Maplenote can edit any text file on the device, in a way that will keep
 working once the server lives in the cloud. The project now has a written
 memory and a review-before-merge workflow.
 
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_
-
 [pr1]: https://github.com/CharlieWA01/maplenote/pull/1
 [pr2]: https://github.com/CharlieWA01/maplenote/pull/2

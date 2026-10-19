@@ -54,6 +54,3 @@ deploy workflow will use.
 Nothing changes for the user yet. Each run costs well under a cent in S3
 requests. A real-S3 problem shows up after merge, not before (see
 DECISIONS.md).
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

@@ -49,6 +49,3 @@ time.
 Docs only (plus one docstring). The README now matches what a visitor would
 actually find, and the portfolio and interview material contain no claim
 that isn't true.
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

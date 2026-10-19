@@ -17,8 +17,7 @@ interviews, and they're Claude's memory between sessions. Follow
 isn't done until its docs are updated **in the same PR**:
 
 1. **Journal:** add or extend `docs/journal/YYYY-MM-DD-<topic>.md` using the
-   template in `docs/journal/README.md`. Leave "In my own words" for Charlie;
-   never fill it in.
+   template in `docs/journal/README.md`.
 2. **Decisions:** real choices go in `docs/DECISIONS.md` (newest at the
    bottom; correct old entries by marking them superseded).
 3. **Roadmap:** tick off finished items; park side ideas; note limitations.

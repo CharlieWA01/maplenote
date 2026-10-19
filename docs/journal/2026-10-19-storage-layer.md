@@ -55,6 +55,3 @@ that's being prepared in `cloud-homelab` (Phase 2) at the same time.
 - Switching to S3 later is a setting, not a code change.
 - No new packages needed to run Maplenote locally.
 - New limitation: on S3, rename is copy-then-delete.
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

@@ -68,7 +68,4 @@ the two-tab conflict, and reported "tested and looking solid".
 No lost work and no silent overwrites, which matter most once the app is
 used from several devices against one cloud server.
 
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_
-
 [pr3]: https://github.com/CharlieWA01/maplenote/pull/3

@@ -25,7 +25,7 @@ Every project has the same layout, so any of them can be picked up quickly.
 | `docs/PORTFOLIO.md` | One-page summary for presentations, resume and interviews | Claude drafts, Charlie edits |
 | `docs/ROADMAP.md` | Done, next, parking lot of ideas, known limitations | Claude, each PR |
 | `docs/DECISIONS.md` | Every real choice: decision, alternatives, trade-offs/cost, why | Claude, each PR |
-| `docs/journal/YYYY-MM-DD-<topic>.md` | What happened in each work session | Claude writes; **"In my own words" is Charlie's** |
+| `docs/journal/YYYY-MM-DD-<topic>.md` | What happened in each work session | Claude |
 | `docs/interview/README.md` | STAR stories drawn from the work | Claude drafts the facts; Charlie rehearses them |
 | `docs/runbooks/` | Procedures that get repeated | Claude, when a procedure appears |
 | `docs/HISTORY.md` | One line per merged PR: date, link, title | **Automatic** (GitHub Action) |
@@ -64,7 +64,7 @@ entry, never deleted.
 
 **Journal** (`docs/journal/`): one file per work session or topic, using the
 template in that folder's `README.md`: Goal, What was done, Problems and
-fixes, How it was verified, Cost or impact, and **In my own words**.
+fixes, How it was verified, and Cost or impact.
 
 **Interview stories** (`docs/interview/README.md`): STAR format
 (Situation, Task, Action, Result), each tagged with themes defined at the top
@@ -79,8 +79,6 @@ used PRs are backfilled by hand once.
 - **Write plainly and explain the why.** Note the cost of every choice:
   money, time, complexity or risk.
 - **Never rewrite history.** Correct old entries by marking them superseded.
-- **"In my own words" belongs to Charlie.** Claude never fills it in. It's
-  what makes the record genuinely Charlie's, and it's the best interview prep.
 - **Be honest about how the work was done.** Projects are built with Claude
   Code as a pair programmer: Charlie sets direction, makes the decisions,
   reviews every PR and tests on real hardware; Claude writes most of the code
@@ -101,8 +99,7 @@ used PRs are backfilled by hand once.
 | PRs that change code or config must also change `docs/` | The `docs-check` workflow fails the PR otherwise (Markdown-only changes always pass). Add the label `no-docs-needed` for a genuine exception (e.g. a typo fix). |
 | A complete timeline of merged PRs | The `docs-history` workflow appends a row to `docs/HISTORY.md` after each merge |
 
-What stays manual, on purpose: **"In my own words"** sections, and rehearsing
-the interview stories out loud.
+What stays manual, on purpose: rehearsing the interview stories out loud.
 
 ## Starting a new project
 
