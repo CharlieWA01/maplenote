@@ -56,6 +56,10 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Live sync between devices (push changes instead of detecting conflicts on
   save); needs a long-running server or API Gateway WebSockets
 - Run the same Docker image on the Proxmox homelab
+- Retry a newer Playwright (pinned at 1.56): check whether the crash when
+  restoring a stored test file handle after a reload is gone in newer Chromium
+- Update the docs workflows (`docs-check`, `docs-history`) in both repos from
+  `actions/checkout@v4` to v7 (v4 runs on a deprecated Node.js; still works)
 - Keep `docs/DOCS-STANDARD.md` in one shared place (e.g. a template repo)
   instead of copying it between repos, once there are more than two
 

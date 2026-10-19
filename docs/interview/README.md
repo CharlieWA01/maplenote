@@ -133,3 +133,9 @@ the architecture and why it's that way. That's what these stories are for.
 - **Result:** 5, 1 and 6 tests failed for the three sabotages and all 62
   pass on the real code, in about a minute. Refactoring can now happen with
   evidence instead of hope.
+- **Bonus, a CI debugging story:** the suite passed locally but failed on
+  GitHub, and the raw logs weren't reachable. Made the pipeline report its
+  own failures as PR annotations, which showed one browser crash cascading
+  into 32 errors. Traced it to a specific Chromium build, and fixed it by
+  making CI use the exact browser build used in development: reproducible
+  environments over "works on my machine".

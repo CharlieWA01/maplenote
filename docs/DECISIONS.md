@@ -242,8 +242,10 @@ Flask's test client) for the server, and `tests/browser/` (Playwright for
 Python, through pytest-playwright) for real scenarios in Chromium. A `tests`
 GitHub Actions workflow runs everything on every PR and push to `main`, on
 Python 3.11 like the Chromebook, keeping a Playwright trace of any failed
-browser test. Pinned: pytest 9.1.1, pytest-playwright 0.9.0, Playwright
-1.63.0 (each out for several weeks).
+browser test. Pinned: pytest 9.1.1, pytest-playwright 0.9.0, and
+**Playwright 1.56.0** (see below). GitHub runs the full Chromium in headless
+mode (`--browser-channel chromium`), closer to real Chrome than Playwright's
+stripped-down "headless shell".
 **Alternatives:** keep testing with throwaway scripts (what we did before:
 nothing survived a session, and nothing ran on PRs); Playwright for
 Node/JavaScript (the same tool, but the project and Charlie are Python).
@@ -254,7 +256,17 @@ same. Python keeps the tests readable for Charlie.
 (the server's conflict check, the preview's HTML switch, the workspace path
 check); each time, the relevant tests failed (5, 1 and 6 tests), and the
 code was restored.
+**Why Playwright 1.56, not the newer 1.63:** with 1.63's Chromium, GitHub's
+browser crashed in one test, restoring a test-only file handle (from the
+browser's private storage) after a page reload, and took every later browser
+test down with it. It happened in both headless modes, never with Chromium
+141. Charlie's real Chrome restores real device files after a refresh, so
+this points at that Chromium build plus test-only handles, not at
+Maplenote. Pinning 1.56 makes CI use Chromium 141, the exact build
+preinstalled in Claude's cloud sessions, so a pass in a session means a pass
+on GitHub. Retrying a newer version is parked.
 **Trade-offs:** about a minute per CI run; browser tests use fixed waits in
-a few places where autosave timing matters. Device-file tests replace only
+a few places where autosave timing matters; the test tool is a year old (it
+only affects testing, never the app). Device-file tests replace only
 the native file picker (it can't be clicked by a test) with real file
 handles from the browser's private storage.

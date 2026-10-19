@@ -54,8 +54,8 @@ def base_url():
 def browser_type_launch_args(browser_type_launch_args):
     """Use a specific Chromium if MAPLENOTE_TEST_CHROMIUM points at one.
 
-    GitHub Actions installs the browser that matches Playwright, so it doesn't
-    need this; Claude's cloud sessions have a preinstalled Chromium instead.
+    Normally not needed: Playwright is pinned to the version whose Chromium is
+    preinstalled in Claude's cloud sessions, and GitHub Actions installs it.
     """
     path = os.environ.get("MAPLENOTE_TEST_CHROMIUM")
     return {**browser_type_launch_args, **({"executable_path": path} if path else {})}
