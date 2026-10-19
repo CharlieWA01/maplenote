@@ -23,3 +23,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-19 | [#13](https://github.com/CharlieWA01/maplenote/pull/13) | Package Maplenote as a Docker image for Lambda, behind a password |
 | 2026-10-19 | [#14](https://github.com/CharlieWA01/maplenote/pull/14) | Sign in on a page instead of the browser's sign-in box |
 | 2026-10-19 | [#15](https://github.com/CharlieWA01/maplenote/pull/15) | Docs: Maplenote is live on Lambda |
+| 2026-10-19 | [#16](https://github.com/CharlieWA01/maplenote/pull/16) | Docs review: Maplenote is hosted on AWS, not only local |
