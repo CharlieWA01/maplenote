@@ -235,3 +235,26 @@ whether Maplenote's Terraform lives in this repo or in `cloud-homelab`.
 **Supersedes:** the earlier roadmap items "Production web server (gunicorn)
 instead of Flask's dev server" and "Deploy to AWS or a simpler host; pick based
 on cost" (gunicorn stays, inside the image).
+
+## 2026-10-19: Automated tests in Python, run on every PR
+**Decision:** A test suite in the repo: `tests/test_api.py` (pytest with
+Flask's test client) for the server, and `tests/browser/` (Playwright for
+Python, through pytest-playwright) for real scenarios in Chromium. A `tests`
+GitHub Actions workflow runs everything on every PR and push to `main`, on
+Python 3.11 like the Chromebook, keeping a Playwright trace of any failed
+browser test. Pinned: pytest 9.1.1, pytest-playwright 0.9.0, Playwright
+1.63.0 (each out for several weeks).
+**Alternatives:** keep testing with throwaway scripts (what we did before:
+nothing survived a session, and nothing ran on PRs); Playwright for
+Node/JavaScript (the same tool, but the project and Charlie are Python).
+**Why:** the storage layer is about to change how every file is read and
+saved; this suite is the safety net that proves the behaviour stays the
+same. Python keeps the tests readable for Charlie.
+**How we know the tests work:** three protections were deliberately broken
+(the server's conflict check, the preview's HTML switch, the workspace path
+check); each time, the relevant tests failed (5, 1 and 6 tests), and the
+code was restored.
+**Trade-offs:** about a minute per CI run; browser tests use fixed waits in
+a few places where autosave timing matters. Device-file tests replace only
+the native file picker (it can't be clicked by a test) with real file
+handles from the browser's private storage.

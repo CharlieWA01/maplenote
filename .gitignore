@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 vendor-src/node_modules/
+test-results/
+.pytest_cache/

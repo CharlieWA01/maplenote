@@ -27,6 +27,18 @@ page with **Ctrl+Shift+R** so the browser loads the new code.
 If `requirements.txt` changed in the update, run
 `pip install -r requirements.txt` first (with `.venv` active).
 
+## Run the tests
+
+```bash
+cd ~/maplenote
+source .venv/bin/activate
+python -m pytest
+```
+
+First time only: `pip install -r requirements-dev.txt` and
+`python -m playwright install chromium`. GitHub runs the same tests on every
+PR; the result shows as the **tests** check on the PR page.
+
 ## Try a pull request before merging
 
 ```bash

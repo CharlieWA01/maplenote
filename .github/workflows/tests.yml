@@ -1,0 +1,42 @@
+# Runs the whole test suite (API tests and browser tests) on every pull
+# request and every push to main. See README.md, "Running the tests".
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"   # same as Charlie's Chromebook
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install Python packages
+        run: pip install -r requirements-dev.txt
+
+      - name: Install the browser the tests drive
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run the tests
+        run: python -m pytest --tracing retain-on-failure
+
+      # If a browser test fails, keep a step-by-step recording of it.
+      # Open it with: python -m playwright show-trace <file>.zip
+      - name: Keep traces of failed browser tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

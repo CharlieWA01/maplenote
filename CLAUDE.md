@@ -70,10 +70,14 @@ appear under Charlie's account).
 - Work on a branch and open a pull request; Charlie reviews and merges.
 - Each PR updates its docs (see "Documenting is part of every task" above)
   and fills in the PR template's checklist.
-- Test before pushing: run the server against a scratch workspace and drive
-  the page in headless Chromium (Playwright is installed in cloud sessions).
-  Type into `.cm-content`; read the text with
-  `CM.EditorView.findFromDOM(document.querySelector('.cm-editor')).state.doc.toString()`.
+- Every change comes with tests: extend `tests/test_api.py` for the server
+  and `tests/browser/` for behaviour in the page (helpers in
+  `tests/browser/helpers.py`). Run `python -m pytest` before pushing; the
+  `tests` workflow runs it on every PR and must pass.
+- In cloud sessions, point the browser tests at the preinstalled Chromium:
+  `MAPLENOTE_TEST_CHROMIUM=/opt/pw-browsers/chromium python -m pytest`.
+- Prove a new test can fail: break the code it protects, watch it fail,
+  restore.
 
 ## Running it
 

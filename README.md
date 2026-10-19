@@ -119,6 +119,24 @@ never pass through the server.
   browsers, or the `penguin.linux.test` address, can still open files, but
   Save downloads a copy instead.
 
+## Running the tests
+
+62 automated tests check the server's API and drive the app in a real
+browser. GitHub Actions runs them on every pull request. To run them yourself:
+
+```bash
+cd ~/maplenote
+source .venv/bin/activate
+pip install -r requirements-dev.txt     # first time only
+python -m playwright install chromium   # first time only: the browser the tests drive
+python -m pytest                        # everything, about a minute
+python -m pytest tests/test_api.py      # just the API tests, under a second
+```
+
+- `tests/test_api.py`: the JSON API, including every safety rule.
+- `tests/browser/`: real scenarios in Chromium: editing, conflicts, crash
+  recovery, the unsaved-changes dialog, device files, the Markdown preview.
+
 ## Getting updates
 
 ```bash
