@@ -20,3 +20,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-19 | [#10](https://github.com/CharlieWA01/maplenote/pull/10) | Record that Lambda packaging stays a Docker image |
 | 2026-10-19 | [#11](https://github.com/CharlieWA01/maplenote/pull/11) | Add an AWS sandbox check: storage tests against the real S3 bucket via OIDC |
 | 2026-10-19 | [#12](https://github.com/CharlieWA01/maplenote/pull/12) | Fix the real-S3 access test (NoSuchKey vs AccessDenied) |
+| 2026-10-19 | [#13](https://github.com/CharlieWA01/maplenote/pull/13) | Package Maplenote as a Docker image for Lambda, behind a password |
