@@ -14,21 +14,26 @@ Status: ✅ done · 🚧 in progress · ⏭️ next · ⬜ planned
 | 5 | Markdown preview: Edit/Preview toggle, `.md` files only | ✅ |
 | 6 | Polish: theme details, README | ⏭️ |
 
-## Cloud-ready (before hosting anywhere)
+## Cloud-ready (local work, no AWS needed)
+
+Target: a Docker image that runs on AWS Lambda (see DECISIONS.md, 2026-10-19).
 
 | Step | Status |
 |------|--------|
-| Storage layer: move disk access into `storage.py` so it can be swapped for cloud storage (e.g. S3) | ⬜ |
-| `Dockerfile` (containerize) | ⬜ |
-| Production web server (gunicorn) instead of Flask's dev server | ⬜ |
+| Automated test suite in the repo (API tests + browser tests), run on every PR by GitHub Actions | ⏭️ |
+| Storage layer: disk access behind `storage.py`, with a local-folder backend and an S3 backend (conflict detection via S3 conditional writes) | ⬜ |
+| `Dockerfile`: Flask + gunicorn + the Lambda Web Adapter; the same image runs locally, on Lambda, or on Proxmox later | ⬜ |
+| File-size limit configurable per environment (5 MB in the cloud, for Lambda's ~6 MB payload limit) | ⬜ |
 
-## Going online
+## Going online (with `cloud-homelab` Phase 2 and 3)
+
+Needs `cloud-homelab` Phase 2 first: Terraform, the S3 backend, GitHub OIDC.
 
 | Step | Status |
 |------|--------|
-| Login (required before anything is publicly reachable) | ⬜ |
-| HTTPS | ⬜ |
-| Deploy to AWS or a simpler host; pick based on cost | ⬜ |
+| Infrastructure in Terraform: S3 bucket for files, ECR repository, Lambda, HTTPS endpoint (API Gateway or Lambda function URL: decide then), Cognito | ⬜ |
+| Login in the app (Cognito); required before anything is publicly reachable | ⬜ |
+| Deploy from GitHub Actions via OIDC (no stored AWS keys) | ⬜ |
 
 ## Parking lot
 
@@ -48,6 +53,9 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Markdown preview: links to other notes (`[x](ideas.md)`) open them in a tab
 - Markdown preview: show images stored in the workspace
 - Ctrl+E to switch between Edit and Preview (as in Obsidian)
+- Live sync between devices (push changes instead of detecting conflicts on
+  save); needs a long-running server or API Gateway WebSockets
+- Run the same Docker image on the Proxmox homelab
 - Keep `docs/DOCS-STANDARD.md` in one shared place (e.g. a template repo)
   instead of copying it between repos, once there are more than two
 
