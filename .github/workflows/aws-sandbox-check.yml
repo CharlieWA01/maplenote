@@ -1,0 +1,59 @@
+# Signs in to the AWS sandbox account the way a deploy will (OIDC, no stored
+# keys) and runs Maplenote's storage code against the real S3 bucket.
+# See docs/runbooks/aws-sandbox-check.md.
+#
+# Runs on main only, because the AWS role trusts nothing else: when a change
+# to the storage code (or this file) is merged, and by hand from the Actions
+# tab ("Run workflow"). Cost: a few dozen S3 requests, well under a cent.
+name: aws-sandbox-check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - storage.py
+      - tests/test_real_s3.py
+      - .github/workflows/aws-sandbox-check.yml
+
+permissions:
+  id-token: write   # lets the job ask GitHub for a sign-in token for AWS
+  contents: read
+
+# One run at a time; they'd only repeat each other.
+concurrency: aws-sandbox-check
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt boto3==1.43.103 pytest==9.1.1
+
+      # Trades GitHub's token for AWS credentials that last an hour. Fails
+      # with "Not authorized to perform sts:AssumeRoleWithWebIdentity" if
+      # this isn't the maplenote repo's main branch.
+      - name: Sign in to AWS (sandbox)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-2
+          mask-aws-account-id: true
+
+      - name: Show who we are signed in as
+        run: aws sts get-caller-identity --query Arn --output text
+
+      - name: Run the storage checks against the real bucket
+        env:
+          MAPLENOTE_LIVE_S3_BUCKET: ${{ vars.MAPLENOTE_S3_BUCKET }}
+        run: |
+          test -n "$MAPLENOTE_LIVE_S3_BUCKET" || { echo "::error::Set the MAPLENOTE_S3_BUCKET repository variable"; exit 1; }
+          python -m pytest tests/test_real_s3.py -v

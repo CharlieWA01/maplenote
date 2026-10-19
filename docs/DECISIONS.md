@@ -312,3 +312,21 @@ hold there too. One interface keeps the API code and its 27 tests unchanged.
 **Trade-offs:** S3 has no rename, so rename is copy then delete (see Known
 limitations). Each S3 save makes two requests (check, then write); reads make
 one. At one user's scale that's a fraction of a cent a month.
+
+## 2026-10-19: Check the S3 backend against the real sandbox bucket, from main only
+**Decision:** a separate workflow, `aws-sandbox-check`, signs in to the AWS
+sandbox account through the GitHub deploy role (OIDC, no stored keys) and
+runs `tests/test_real_s3.py` against Maplenote's real bucket, in a
+`ci-check/<run>/` folder it empties afterwards. It runs when a change to
+`storage.py`, that test file or the workflow reaches `main`, and on demand
+from the Actions tab. Everywhere else the real-S3 tests are skipped.
+**Alternatives:** run it on pull requests (the deploy role trusts only
+`main`, deliberately, so a PR can't reach AWS); a second AWS role trusted by
+PRs (more to secure for little gain at this stage); keep only the moto
+tests (moto imitates S3 well, but it doesn't enforce encryption settings
+or IAM: two of the four real-S3 tests fail against moto, which is how we
+know they test something moto can't).
+**Why:** closes the "real S3 gets checked once the sandbox bucket exists"
+item from the storage-layer decision, and proves the sign-in path the
+future deploy workflow will use. **Trade-off:** a problem with real S3
+shows up after merge, not before. **Cost:** under a cent per run.
