@@ -232,6 +232,9 @@ stored in ECR (cents a month). Prices quoted are approximate, to be checked
 when the infrastructure is designed.
 **Open for Phase 3:** API Gateway vs. a Lambda function URL in front;
 whether Maplenote's Terraform lives in this repo or in `cloud-homelab`.
+**Reconfirmed (2026-10-19):** after weighing a plain zip again (simpler first
+deploy, fewer AWS pieces), Charlie kept the Docker image, so the same image can
+run on the homelab later.
 **Supersedes:** the earlier roadmap items "Production web server (gunicorn)
 instead of Flask's dev server" and "Deploy to AWS or a simpler host; pick based
 on cost" (gunicorn stays, inside the image).
