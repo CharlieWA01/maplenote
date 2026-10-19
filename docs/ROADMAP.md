@@ -48,6 +48,10 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Markdown preview: links to other notes (`[x](ideas.md)`) open them in a tab
 - Markdown preview: show images stored in the workspace
 - Ctrl+E to switch between Edit and Preview (as in Obsidian)
+- Weekly scheduled Claude routine that checks recent PRs and commits across
+  Charlie's repos for anything the docs missed, and opens a PR to fill gaps
+- Keep `docs/DOCS-STANDARD.md` in one shared place (e.g. a template repo)
+  instead of copying it between repos, once there are more than two
 
 ## Known limitations
 

@@ -1,0 +1,48 @@
+# Fails a pull request that changes code or config (anything that isn't a
+# Markdown file) without also updating something in docs/.
+# See docs/DOCS-STANDARD.md.
+# For a genuine exception (a typo fix, a dependency bump), add the label
+# "no-docs-needed" to the PR.
+name: docs-check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  docs-updated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require a docs update alongside other changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SKIP: ${{ contains(github.event.pull_request.labels.*.name, 'no-docs-needed') }}
+        run: |
+          if [ "$SKIP" = "true" ]; then
+            echo "Label 'no-docs-needed' is set: skipping the check."
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          echo "Files changed in this PR:"
+          echo "$changed" | sed 's/^/  /'
+          # Markdown files anywhere (README.md, CLAUDE.md, …) count as docs too.
+          other=$(echo "$changed" | grep -v '^docs/' | grep -v '\.md$' || true)
+          docs=$(echo "$changed" | grep '^docs/' || true)
+          if [ -z "$other" ]; then
+            echo "Only docs changed. OK."
+          elif [ -n "$docs" ]; then
+            echo "Docs were updated alongside the other changes. OK."
+          else
+            echo "::error::This PR changes code or config but updates nothing in docs/."
+            echo "Add a journal entry (and decisions, roadmap, etc. as needed): see docs/DOCS-STANDARD.md."
+            echo "For a genuine exception, add the label 'no-docs-needed'."
+            exit 1
+          fi
