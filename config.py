@@ -30,9 +30,23 @@ PORT = int(os.environ.get("MAPLENOTE_PORT", "8000"))
 # host are refused, which blocks malicious websites from tricking your browser
 # into talking to Maplenote (an attack called "DNS rebinding").
 # penguin.linux.test is the Chromebook's name for its Linux environment.
+# A name starting with a dot allows every name ending with it: on AWS,
+# ".lambda-url.us-east-2.on.aws" allows the function's own web address
+# (AWS chooses it, so it isn't known in advance).
 ALLOWED_HOSTS = os.environ.get(
     "MAPLENOTE_ALLOWED_HOSTS", "localhost,127.0.0.1,penguin.linux.test"
 ).split(",")
 
 # Files bigger than this are refused, so a giant log can't freeze the browser tab.
-MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
+# 10 MB by default. On AWS Lambda it's set to 5 MB, because Lambda refuses
+# requests and responses over about 6 MB.
+MAX_FILE_BYTES = int(os.environ.get("MAPLENOTE_MAX_FILE_BYTES", 10 * 1024 * 1024))
+
+# When set, every request must carry this password (see auth.py). Holds a hash
+# of the password, made with `python auth.py`, never the password itself.
+# Empty (no password) is the normal case on your own computer.
+PASSWORD_HASH = os.environ.get("MAPLENOTE_PASSWORD_HASH", "")
+
+# AWS sets this on Lambda. Maplenote refuses to start there without a
+# password, so a missing setting can't put the notes online unprotected.
+ON_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))

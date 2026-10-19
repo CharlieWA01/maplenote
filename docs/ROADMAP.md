@@ -22,8 +22,8 @@ Target: a Docker image that runs on AWS Lambda (see DECISIONS.md, 2026-10-19).
 |------|--------|
 | Automated test suite in the repo (API tests + browser tests), run on every PR by GitHub Actions | ✅ |
 | Storage layer: disk access behind `storage.py`, with a local-folder backend and an S3 backend (conflict detection via S3 conditional writes); S3 tested against a fake S3 | ✅ |
-| `Dockerfile`: Flask + gunicorn + the Lambda Web Adapter; the same image runs locally, on Lambda, or on Proxmox later | ⏭️ |
-| File-size limit configurable per environment (5 MB in the cloud, for Lambda's ~6 MB payload limit) | ⬜ |
+| `Dockerfile`: Flask + gunicorn + the Lambda Web Adapter; the same image runs locally, on Lambda, or on Proxmox later; built and run on every PR | ✅ |
+| File-size limit configurable per environment (`MAPLENOTE_MAX_FILE_BYTES`; 5 MB in the cloud, for Lambda's ~6 MB payload limit) | ✅ |
 
 ## Going online (with `cloud-homelab` Phase 2 and 3)
 
@@ -32,9 +32,10 @@ Needs `cloud-homelab` Phase 2 first: Terraform, the S3 backend, GitHub OIDC.
 | Step | Status |
 |------|--------|
 | Sandbox S3 bucket for files (Terraform in `cloud-homelab`) and an `aws-sandbox-check` workflow that signs in via OIDC and runs the storage code against it | ✅ |
-| Infrastructure in Terraform: ECR repository, Lambda, HTTPS endpoint (API Gateway or Lambda function URL: decide then), Cognito | ⬜ |
-| Login in the app (Cognito); required before anything is publicly reachable | ⬜ |
-| Deploy from GitHub Actions via OIDC (no stored AWS keys); sign-in itself is proven by `aws-sandbox-check` | ⬜ |
+| Infrastructure in Terraform (`cloud-homelab`): ECR repository, Lambda, Lambda function URL (decided 2026-10-19) | 🚧 written; waiting on Charlie's apply |
+| A password in front of the hosted app (`auth.py`), so it's never online unprotected; Lambda refuses to start without one | ✅ |
+| Deploy from GitHub Actions via OIDC (no stored AWS keys): `deploy-sandbox` builds, pushes, updates the function and checks it asks for the password | 🚧 first run after the apply |
+| Login in the app with Cognito, replacing the password | ⏭️ |
 
 ## Parking lot
 
@@ -56,7 +57,10 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Ctrl+E to switch between Edit and Preview (as in Obsidian)
 - Live sync between devices (push changes instead of detecting conflicts on
   save); needs a long-running server or API Gateway WebSockets
-- Run the same Docker image on the Proxmox homelab
+- Run the same Docker image on the Proxmox homelab (`docker run` line in the
+  `Dockerfile`; already works on any Linux machine with Docker)
+- Roll back a deploy from the Actions tab (point the function at an older
+  commit's image; today it's one `aws lambda update-function-code` command)
 - Retry a newer Playwright (pinned at 1.56): check whether the crash when
   restoring a stored test file handle after a reload is gone in newer Chromium
 - Update the docs workflows (`docs-check`, `docs-history`) in both repos from
@@ -65,6 +69,11 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   instead of copying it between repos, once there are more than two
 
 ## Known limitations
+
+- The hosted app has one shared password and no sign-out button (close the
+  browser to sign out) until Cognito login replaces it.
+- After a while idle, the first request on Lambda takes a second or two
+  (a "cold start").
 
 - In S3 storage, renaming is a copy followed by a delete (S3 has no rename). If
   the second step fails, the file exists under both names; nothing is lost.

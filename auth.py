@@ -1,0 +1,65 @@
+"""A single password in front of the whole app, for when it's reachable online.
+
+Until Cognito login exists, a hosted Maplenote asks for one password using
+HTTP Basic authentication: the browser shows its own sign-in box, remembers
+the answer for the session and sends it with every request (page, scripts
+and API calls alike). The connection is HTTPS, so the password is encrypted
+on the way.
+
+The server is given only a *hash* of the password (MAPLENOTE_PASSWORD_HASH),
+never the password itself, so the AWS console, Terraform state and logs
+never contain it. Make a hash with:
+
+    python auth.py
+
+The username in the sign-in box is ignored; only the password counts.
+Locally the setting is empty and nothing changes.
+"""
+import base64
+import getpass
+import hmac
+
+from werkzeug.security import check_password_hash, generate_password_hash
+
+# Checking a password against its hash is deliberately slow (that's what makes
+# a stolen hash hard to crack), and the browser sends the password with every
+# request. So the last header that matched is remembered, and an identical
+# one is accepted without redoing the slow check.
+_last_accepted = None
+
+
+def password_from_header(header):
+    """The password in an "Authorization: Basic <base64 of user:password>" header, or None."""
+    scheme, _, encoded = (header or "").partition(" ")
+    if scheme.lower() != "basic":
+        return None
+    try:
+        decoded = base64.b64decode(encoded.strip(), validate=True).decode("utf-8")
+    except ValueError:  # not base64, or not UTF-8
+        return None
+    _user, colon, password = decoded.partition(":")
+    return password if colon else None
+
+
+def is_allowed(header, password_hash):
+    """True if the request's Authorization header carries the right password."""
+    global _last_accepted
+    # compare_digest takes the same time whether or not the start matches, so
+    # timing can't be used to guess the header one character at a time.
+    if _last_accepted is not None and header and hmac.compare_digest(header, _last_accepted):
+        return True
+    password = password_from_header(header)
+    if password is None or not check_password_hash(password_hash, password):
+        return False
+    _last_accepted = header
+    return True
+
+
+if __name__ == "__main__":
+    first = getpass.getpass("New Maplenote password: ")
+    if len(first) < 12:
+        raise SystemExit("Use at least 12 characters (a passphrase of a few words is fine).")
+    if getpass.getpass("Same again: ") != first:
+        raise SystemExit("The two didn't match. Nothing was made.")
+    print("\nMAPLENOTE_PASSWORD_HASH (safe to store; it can't be turned back into the password):\n")
+    print(generate_password_hash(first))

@@ -42,7 +42,7 @@ jobs:
       # with "Not authorized to perform sts:AssumeRoleWithWebIdentity" if
       # this isn't the maplenote repo's main branch.
       - name: Sign in to AWS (sandbox)
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-east-2

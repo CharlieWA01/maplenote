@@ -1,0 +1,11 @@
+# Only what the image needs is copied in (see Dockerfile); this keeps the
+# rest out of the build context, so builds stay fast and nothing private
+# (a local .env, test traces, the git history) can end up in the image.
+*
+!app.py
+!auth.py
+!config.py
+!storage.py
+!static/
+!requirements.txt
+!requirements-image.txt

@@ -1,0 +1,112 @@
+# Builds Maplenote's Docker image, pushes it to Maplenote's image repository
+# (ECR) and points the Lambda function at it. Signs in to the AWS sandbox
+# account through the GitHub deploy role (OIDC, no stored keys), which can
+# only push this image and update this function: creating or changing AWS
+# resources stays with Terraform in the cloud-homelab repo.
+# See docs/runbooks/deploy-sandbox.md.
+#
+# Runs on main only, because the AWS role trusts nothing else: when a change
+# to the app (or the image recipe) is merged, and by hand from the Actions
+# tab ("Run workflow"). Pull requests build and test the image in the `tests`
+# workflow instead. Cost: a few cents a month for stored images.
+name: deploy-sandbox
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - app.py
+      - auth.py
+      - config.py
+      - storage.py
+      - static/**
+      - requirements.txt
+      - requirements-image.txt
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/deploy-sandbox.yml
+
+permissions:
+  id-token: write   # lets the job ask GitHub for a sign-in token for AWS
+  contents: read
+
+# One deploy at a time, and never cancel one halfway through.
+concurrency:
+  group: deploy-sandbox
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: cwa-maplenote
+  FUNCTION_NAME: cwa-maplenote
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Trades GitHub's token for AWS credentials that last an hour. Fails
+      # with "Not authorized to perform sts:AssumeRoleWithWebIdentity" if
+      # this isn't the maplenote repo's main branch.
+      - name: Sign in to AWS (sandbox)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      # Each image is tagged with the commit it was built from, and tags
+      # can't be overwritten (the repository is set to "immutable"), so
+      # every running version can be traced back to its code.
+      - name: Sign in to the image registry (ECR)
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          echo "::add-mask::$account"
+          registry="$account.dkr.ecr.$AWS_REGION.amazonaws.com"
+          echo "IMAGE=$registry/$ECR_REPOSITORY:$GITHUB_SHA" >> "$GITHUB_ENV"
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$registry"
+
+      # Running the workflow again for the same commit reuses its image.
+      # --provenance=false keeps the image in a format Lambda accepts (no
+      # extra build-record entries next to it).
+      - name: Build and push the image
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" > /dev/null 2>&1; then
+            echo "This commit's image is already in ECR; not rebuilding."
+          else
+            docker build --provenance=false --platform linux/amd64 -t "$IMAGE" .
+            docker push "$IMAGE"
+          fi
+
+      # The very first push happens before Terraform has created the
+      # function (Lambda needs an image to exist first). In that case, stop
+      # here successfully; the runbook's next step creates the function.
+      - name: Point the Lambda function at the new image
+        id: update
+        run: |
+          if ! error=$(aws lambda get-function --function-name "$FUNCTION_NAME" 2>&1 > /dev/null); then
+            if grep -q ResourceNotFoundException <<< "$error"; then
+              echo "::notice::Image pushed. The Lambda function doesn't exist yet: run the Terraform apply in docs/runbooks/deploy-sandbox.md, then run this workflow again."
+              echo "updated=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$error"
+            exit 1
+          fi
+          aws lambda update-function-code --function-name "$FUNCTION_NAME" --image-uri "$IMAGE" --query LastUpdateStatus --output text
+          aws lambda wait function-updated-v2 --function-name "$FUNCTION_NAME"
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+
+      # A check from outside, as a stranger would see it: the app must
+      # answer, and must ask for the password. Anything but a 401 fails the
+      # deploy (a 200 would mean the notes are open to anyone).
+      - name: Check the app answers and asks for its password
+        if: steps.update.outputs.updated == 'true'
+        run: |
+          url=$(aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --query FunctionUrl --output text)
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 --retry 3 --retry-all-errors "${url}api/files")
+          echo "Without a password, ${url}api/files answered $status"
+          test "$status" = 401
+          echo "Maplenote is deployed: $url" >> "$GITHUB_STEP_SUMMARY"

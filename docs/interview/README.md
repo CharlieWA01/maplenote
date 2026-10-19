@@ -166,3 +166,29 @@ the architecture and why it's that way. That's what these stories are for.
   asked the wrong question. Rewrote it to check writes and deletes (always
   testable) and reads of a file that really exists.
 - **Lesson:** a red test is a claim to investigate, in both directions.
+
+## Putting a personal app online without breaking my own rule
+**Tags:** Security, Design
+
+- **Situation:** Maplenote was ready to run on AWS Lambda behind a public
+  HTTPS address, reading and writing my real notes bucket. The plan was
+  Cognito login, but that was a later step, and the project's own rule says
+  nothing goes on the public internet without a login.
+- **Task:** Get a URL I could actually open in Chrome now, without leaving
+  my notes open to anyone who found it.
+- **Action:** Weighed three options: AWS-signed requests only (safe but not
+  usable in a browser), leaving it open with an obscure URL (breaks the
+  rule), or a stopgap password. Chose a single password with HTTP Basic
+  authentication, where the server stores only an scrypt hash, so the
+  password never appears in AWS, Terraform state or logs. Made it fail
+  closed: on Lambda the app refuses to start without a password hash. Capped
+  the function at 2 concurrent copies to limit guessing speed and cost.
+  The deploy pipeline checks from outside that the URL answers "401, needs a
+  password" and fails the deploy on anything else.
+- **Result:** A real HTTPS URL usable from any device, protected from the
+  first request, for a few cents a month, with about 40 lines of code that
+  Cognito will replace. Every protection was tested by switching it off and
+  watching the tests fail.
+- **Lesson:** a stopgap is fine if it's honest about being one and fails
+  safe: the dangerous mistake (a forgotten setting) produces an outage, not
+  an exposure.
