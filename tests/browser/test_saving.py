@@ -4,6 +4,10 @@ from playwright.sync_api import expect
 
 from .helpers import editor_text, open_app, open_file, set_autosave, tab, type_at_end, wait_for_file
 
+# Drafts are kept about a second after typing stops; wait comfortably longer so
+# slower machines (like GitHub's) have stored it before the page reloads.
+DRAFT_DELAY = 2000
+
 
 @pytest.fixture
 def two_tabs(context, workspace):
@@ -83,7 +87,7 @@ def test_crash_recovery_offers_unsaved_text(page, workspace):
     set_autosave(page, False)
     open_file(page, "a.txt")
     type_at_end(page, "precious words")
-    page.wait_for_timeout(1300)  # the draft is kept about a second after typing
+    page.wait_for_timeout(DRAFT_DELAY)
 
     page.once("dialog", lambda dialog: dialog.accept())  # "Leave site?"
     page.reload()
@@ -100,7 +104,7 @@ def test_crash_recovery_discard(page, workspace):
     set_autosave(page, False)
     open_file(page, "a.txt")
     type_at_end(page, "throwaway")
-    page.wait_for_timeout(1300)
+    page.wait_for_timeout(DRAFT_DELAY)
     page.once("dialog", lambda dialog: dialog.accept())
     page.reload()
 
@@ -116,7 +120,7 @@ def test_recovered_draft_does_not_overwrite_a_newer_file(page, workspace):
     set_autosave(page, False)
     open_file(page, "a.txt")
     type_at_end(page, "draft")
-    page.wait_for_timeout(1300)
+    page.wait_for_timeout(DRAFT_DELAY)
 
     (workspace / "a.txt").write_text("changed while the browser was closed\n")
     page.once("dialog", lambda dialog: dialog.accept())
@@ -170,6 +174,7 @@ def test_leaving_the_page_warns_only_when_edits_would_be_lost(page, workspace):
     type_at_end(page, "x")  # autosave on: nothing to warn about once saved
     wait_for_file(workspace / "a.txt", "a\nx")
     page.reload()
+    expect(page.locator(".tab.active")).to_have_attribute("title", "a.txt")  # restored
     assert dialogs == []
 
     set_autosave(page, False)

@@ -14,9 +14,9 @@ jobs:
   pytest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"   # same as Charlie's Chromebook
           cache: pip
@@ -29,13 +29,27 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Run the tests
-        run: python -m pytest --tracing retain-on-failure
+        run: |
+          set -o pipefail
+          python -m pytest --tracing retain-on-failure 2>&1 | tee pytest-output.txt
+
+      # Show each failing test as an annotation on the PR, readable without
+      # opening the full log.
+      - name: Report failing tests on the PR
+        if: failure()
+        run: |
+          grep -E '^(FAILED|ERROR) ' pytest-output.txt | while read -r line; do
+            echo "::error title=Test failed::$line"
+          done || true
+          grep -E '^E  ' pytest-output.txt | head -20 | while read -r line; do
+            echo "::error title=Failure detail::$line"
+          done || true
 
       # If a browser test fails, keep a step-by-step recording of it.
       # Open it with: python -m playwright show-trace <file>.zip
       - name: Keep traces of failed browser tests
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-traces
           path: test-results/

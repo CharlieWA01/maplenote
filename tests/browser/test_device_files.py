@@ -76,6 +76,7 @@ def test_binary_files_are_refused(page, open_device_file):
 
 def test_device_tab_comes_back_after_a_refresh(page, open_device_file):
     open_device_file("notes.md")
+    expect(tab(page, "notes.md")).to_have_count(1)  # opened (and remembered) before reloading
     page.reload()
     expect(tab(page, "notes.md")).to_have_count(1)
     assert editor_text(page) == "# From my device\n"
