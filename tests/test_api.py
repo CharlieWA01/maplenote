@@ -3,6 +3,7 @@ import base64
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import auth
@@ -220,11 +221,71 @@ def test_without_a_password_setting_nothing_is_asked(client):
 
 
 def test_password_is_required_for_pages_files_and_api(client, password):
-    for path in ("/", "/static/app.js", "/api/files", url("scratch.txt")):
-        response = client.get(path)
-        assert response.status_code == 401, path
-        # This header is what makes the browser show its sign-in box.
-        assert response.headers["WWW-Authenticate"].startswith('Basic realm="Maplenote"')
+    for path in ("/static/app.js", "/api/files", url("scratch.txt")):
+        assert client.get(path).status_code == 401, path
+    assert client.put(url("a.txt"), json={"content": "x"}).status_code == 401
+    # The page itself sends the browser to the sign-in page instead.
+    response = client.get("/")
+    assert response.status_code == 303
+    assert response.headers["Location"].endswith("/login")
+    # No WWW-Authenticate header: it would make the browser show its own
+    # sign-in box locally, and AWS drops it anyway.
+    assert "WWW-Authenticate" not in client.get("/api/files").headers
+
+
+def test_sign_in_page_and_its_style_are_open(client, password):
+    page = client.get("/login")
+    assert page.status_code == 200
+    assert 'name="password"' in page.get_data(as_text=True)
+    assert client.get("/static/style.css").status_code == 200
+
+
+def sign_in(client, attempt):
+    return client.post("/login", data={"password": attempt})
+
+
+def test_signing_in_sets_a_cookie_that_lets_everything_through(client, password):
+    response = sign_in(client, password)
+    assert response.status_code == 303 and response.headers["Location"].endswith("/")
+    cookie = response.headers["Set-Cookie"]
+    for flag in ("HttpOnly", "Secure", "SameSite=Lax", "Max-Age=2592000"):
+        assert flag in cookie, flag
+    # The test client keeps the cookie, like a browser.
+    assert client.get("/").status_code == 200
+    assert client.put(url("a.txt"), json={"content": "hi"}).status_code == 200
+    assert client.get(url("a.txt")).get_json()["content"] == "hi"
+
+
+def test_wrong_password_on_the_sign_in_page(client, password):
+    response = sign_in(client, "wrong horse")
+    assert response.status_code == 401
+    assert "isn't right" in response.get_data(as_text=True)
+    assert "Set-Cookie" not in response.headers
+    assert client.get("/api/files").status_code == 401
+
+
+def test_signing_out_ends_the_session(client, password):
+    sign_in(client, password)
+    response = client.get("/logout")
+    assert response.headers["Location"].endswith("/login")
+    assert client.get("/api/files").status_code == 401
+
+
+def test_forged_old_or_outdated_cookies_are_refused(client, password, monkeypatch):
+    now = time.time()
+    hash_now = config.PASSWORD_HASH
+    for value in (
+        "",
+        "garbage",
+        f"{int(now)}.{'0' * 64}",  # right shape, wrong signature
+        auth.new_session(hash_now, now=now - auth.SESSION_SECONDS - 1),  # too old
+        auth.new_session(hash_now, now=now + 3600),  # from the future
+        auth.new_session(generate_password_hash("old password")),  # before a password change
+    ):
+        client.set_cookie(auth.SESSION_COOKIE, value)
+        assert client.get("/api/files").status_code == 401, value
+    client.set_cookie(auth.SESSION_COOKIE, auth.new_session(hash_now))
+    assert client.get("/api/files").status_code == 200
 
 
 def test_wrong_or_malformed_passwords_are_refused(client, password):
@@ -239,7 +300,7 @@ def test_wrong_or_malformed_passwords_are_refused(client, password):
 
 
 def test_right_password_lets_everything_through(client, password):
-    headers = basic(password)
+    headers = basic(password)  # how scripts sign in (e.g. curl -u any:password)
     assert client.get("/", headers=headers).status_code == 200
     saved = client.put(url("a.txt"), json={"content": "hi"}, headers=headers)
     assert saved.status_code == 200

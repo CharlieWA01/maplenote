@@ -20,14 +20,18 @@ API
   POST   /api/rename  with body {"from": "a.txt", "to": "b.txt"}  -> renames a file
 
 When a password is set (MAPLENOTE_PASSWORD_HASH, on AWS), every request,
-pages included, must carry it; otherwise the reply is 401. See auth.py.
+pages included, needs a session cookie from the sign-in page (/login) or the
+password itself; otherwise the page redirects to /login and everything else
+gets a 401. /logout signs out. See auth.py.
 
 A "version" is a fingerprint of a file's contents. The browser sends back the
 version it last saw when saving; if the file has changed since (another tab,
 another device, another program), the save is refused so nothing is silently
 overwritten.
 """
-from flask import Flask, abort, jsonify, request, send_from_directory
+from pathlib import Path
+
+from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
 import auth
@@ -63,20 +67,63 @@ def host_is_allowed(hostname):
     return False
 
 
+# Reachable without signing in: the sign-in page and its stylesheet.
+OPEN_PATHS = {"/login", "/static/style.css"}
+
+
 @app.before_request
 def check_password():
-    """When a password is set (on AWS), refuse requests that don't carry it.
+    """When a password is set (on AWS), refuse requests from anyone not signed in.
 
-    The 401 reply with a WWW-Authenticate header makes the browser show its
-    sign-in box. See auth.py.
+    Signed in means a valid session cookie (from /login), or the password
+    sent with HTTP Basic authentication (for scripts). The page itself is
+    redirected to the sign-in page; everything else gets a 401. See auth.py.
     """
-    if config.PASSWORD_HASH and not auth.is_allowed(
-        request.headers.get("Authorization"), config.PASSWORD_HASH
-    ):
-        response = jsonify(error="Maplenote needs its password.")
-        response.status_code = 401
-        response.headers["WWW-Authenticate"] = 'Basic realm="Maplenote", charset="UTF-8"'
-        return response
+    if not config.PASSWORD_HASH or request.path in OPEN_PATHS:
+        return None
+    if auth.session_is_valid(request.cookies.get(auth.SESSION_COOKIE), config.PASSWORD_HASH):
+        return None
+    if auth.is_allowed(request.headers.get("Authorization"), config.PASSWORD_HASH):
+        return None
+    if request.method == "GET" and request.path == "/":
+        return redirect("/login", code=303)
+    return jsonify(error="Maplenote needs its password: reload the page to sign in."), 401
+
+
+def login_page(message="", status=200):
+    page = (Path(app.static_folder) / "login.html").read_text(encoding="utf-8")
+    return page.replace("<!--message-->", message), status
+
+
+@app.get("/login")
+def show_login():
+    return login_page()
+
+
+@app.post("/login")
+def log_in():
+    """Check the password from the sign-in page; if right, hand out a session cookie."""
+    if not config.PASSWORD_HASH:
+        return redirect("/", code=303)  # no password set (running locally)
+    if not auth.password_is_right(request.form.get("password", ""), config.PASSWORD_HASH):
+        return login_page('<p class="login-error">That password isn\'t right.</p>', 401)
+    response = redirect("/", code=303)
+    response.set_cookie(
+        auth.SESSION_COOKIE,
+        auth.new_session(config.PASSWORD_HASH),
+        max_age=auth.SESSION_SECONDS,
+        secure=True,      # only ever sent over HTTPS (browsers make an exception for localhost)
+        httponly=True,    # scripts on the page can't read it
+        samesite="Lax",   # other sites can't make the browser send it with their requests
+    )
+    return response
+
+
+@app.get("/logout")
+def log_out():
+    response = redirect("/login", code=303)
+    response.delete_cookie(auth.SESSION_COOKIE, secure=True, httponly=True, samesite="Lax")
+    return response
 
 
 # Rules the browser enforces on the page, as a second line of defence for the

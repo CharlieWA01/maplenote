@@ -40,15 +40,18 @@ By hand: Actions tab → **deploy-sandbox** → **Run workflow** (branch
    doesn't exist yet; a second apply creates the function and its URL;
    then **Run workflow** once more, which should go green.
 3. Open the URL (`terraform output -raw maplenote_url` in `cloud-homelab`,
-   or the workflow's summary) in Chrome. The browser asks for a username
-   and password: any username, your password.
+   or the workflow's summary) in Chrome. It opens Maplenote's sign-in
+   page; enter your password. Chrome stays signed in for 30 days. To sign
+   out, open `<url>/logout`.
+   From a script: `curl -u any:<password> <url>api/files`.
 
 ## Changing the password
 
 Make a new hash (step 1), replace the line in `cloud-homelab`'s
 `terraform.tfvars`, plan and apply. The plan shows one change to
 `aws_lambda_function.maplenote` (the value itself is hidden as
-"sensitive"). Close and reopen the browser to be asked again.
+"sensitive"). Every signed-in browser is signed out, because sessions are
+signed with the password's hash.
 
 ## Rolling back
 

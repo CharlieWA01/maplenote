@@ -42,9 +42,11 @@ appear under Charlie's account).
   conditional writes (If-Match / If-None-Match) for the 409 conflict rule;
   its tests run against a fake S3 (moto), never real AWS.
 - `config.py`: every setting, each overridable by a `MAPLENOTE_*` env var.
-- `auth.py`: one password (HTTP Basic, checked against an scrypt hash in
+- `auth.py`: one password (checked against an scrypt hash in
   `MAPLENOTE_PASSWORD_HASH`) in front of everything when hosted; off locally.
-  On Lambda the app refuses to start without it. Cognito replaces it later.
+  A sign-in page (`/login`, `static/login.html`) sets a signed session
+  cookie; HTTP Basic also works for scripts. `/logout` signs out.
+  On Lambda the app refuses to start without the hash. Cognito replaces it later.
 - `Dockerfile`: the one image for Lambda and anywhere else (gunicorn, one
   worker, plus AWS's Lambda Web Adapter). The `deploy-sandbox` workflow
   ships it; the AWS resources are Terraform in the `cloud-homelab` repo

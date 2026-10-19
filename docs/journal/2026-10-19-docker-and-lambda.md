@@ -73,5 +73,28 @@ storage; Lambda requests stay in the free tier at one person's use).
 Risk added: the app is on the public internet; the password, the fail-closed
 start-up check and the deploy's 401 check are what keep it private.
 
+## Afterwards: the sign-in box that never appeared
+After Charlie's two applies and the merge, the function and its URL were
+live. Opening the URL in Chrome showed `{"error":"Maplenote needs its
+password."}` and no sign-in box. The protection worked (nothing was
+readable without the password), but there was no way to type it in: the
+browser only shows its box when the reply carries a `WWW-Authenticate`
+header, and on the Lambda function URL it evidently doesn't arrive (inferred
+from the symptom; Claude's session can't reach the URL to inspect the
+headers).
+
+Fix (a second PR): a sign-in page at `/login` (a plain form, no script),
+which sets a signed session cookie for 30 days; `/logout` signs out; the
+page redirects to `/login` when signed out, and the editor goes there if a
+request is refused mid-session. Basic authentication still works for
+scripts. See DECISIONS.md.
+
+Verified: 122 tests pass (7 new or rewritten for the page and cookie,
+including Chromium signing in through the form, a wrong password, signing
+out, and the page returning to sign-in when its cookie disappears). Broken
+on purpose, each failed: cookies accepted without a valid signature (1),
+no 30-day limit (1), the page ignoring a 401 (1), the API left open to
+signed-out requests (6).
+
 ## In my own words
 _(Charlie: what you learned, what surprised you, what you'd do differently.)_

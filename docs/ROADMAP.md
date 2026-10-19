@@ -70,8 +70,9 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 
 ## Known limitations
 
-- The hosted app has one shared password and no sign-out button (close the
-  browser to sign out) until Cognito login replaces it.
+- The hosted app has one shared password until Cognito login replaces it.
+  Signing out is the address `/logout` (no button yet). Sessions last 30
+  days; changing the password signs every device out.
 - After a while idle, the first request on Lambda takes a second or two
   (a "cold start").
 

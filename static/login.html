@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Maplenote</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+  <!-- Shown only when Maplenote is hosted with a password (see auth.py). A
+       plain form, no script: the server checks the password and sets a cookie. -->
+  <form class="login" method="post" action="/login">
+    <h1 class="brand">Maplenote</h1>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <!--message-->
+    <button type="submit">Sign in</button>
+  </form>
+</body>
+</html>
