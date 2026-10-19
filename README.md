@@ -17,9 +17,13 @@ files in one folder on your computer, and you edit them in a browser tab.
 └────────────────────────────┘       └────────────────────────┘      └────────────────────┘
 ```
 
-- **`app.py`** is the server: it serves the page and moves text to and from disk.
+- **`app.py`** is the server: it serves the page and moves text to and from storage.
   It never touches anything outside the workspace folder.
-- **`config.py`** holds the settings: workspace folder, port, size limit.
+- **`storage.py`** decides where files live: a folder on your computer (the
+  default), or an Amazon S3 bucket when Maplenote is hosted on AWS
+  (`MAPLENOTE_STORAGE=s3` plus `MAPLENOTE_S3_BUCKET`). The server code is the
+  same either way.
+- **`config.py`** holds the settings: storage, workspace folder, port, size limit.
 - **`static/`** is the page itself: all the editing happens in the browser.
   Which tabs you had open is remembered by the browser, so a refresh restores them.
   The editing area is [CodeMirror 6](https://codemirror.net/) and the Markdown
@@ -121,7 +125,7 @@ never pass through the server.
 
 ## Running the tests
 
-62 automated tests check the server's API and drive the app in a real
+104 automated tests check the server's API and storage and drive the app in a real
 browser. GitHub Actions runs them on every pull request. To run them yourself:
 
 ```bash
@@ -134,6 +138,8 @@ python -m pytest tests/test_api.py      # just the API tests, under a second
 ```
 
 - `tests/test_api.py`: the JSON API, including every safety rule.
+- `tests/test_storage.py`: both storage backends pass the same tests; the S3
+  one runs against a fake S3 (the `moto` library), so no AWS account is used.
 - `tests/browser/`: real scenarios in Chromium: editing, conflicts, crash
   recovery, the unsaved-changes dialog, device files, the Markdown preview.
 

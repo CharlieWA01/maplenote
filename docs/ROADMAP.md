@@ -21,8 +21,8 @@ Target: a Docker image that runs on AWS Lambda (see DECISIONS.md, 2026-10-19).
 | Step | Status |
 |------|--------|
 | Automated test suite in the repo (API tests + browser tests), run on every PR by GitHub Actions | ✅ |
-| Storage layer: disk access behind `storage.py`, with a local-folder backend and an S3 backend (conflict detection via S3 conditional writes) | ⏭️ |
-| `Dockerfile`: Flask + gunicorn + the Lambda Web Adapter; the same image runs locally, on Lambda, or on Proxmox later | ⬜ |
+| Storage layer: disk access behind `storage.py`, with a local-folder backend and an S3 backend (conflict detection via S3 conditional writes); S3 tested against a fake S3 | ✅ |
+| `Dockerfile`: Flask + gunicorn + the Lambda Web Adapter; the same image runs locally, on Lambda, or on Proxmox later (packaging still open: Docker image or zip) | ⏭️ |
 | File-size limit configurable per environment (5 MB in the cloud, for Lambda's ~6 MB payload limit) | ⬜ |
 
 ## Going online (with `cloud-homelab` Phase 2 and 3)
@@ -65,6 +65,8 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 
 ## Known limitations
 
+- In S3 storage, renaming is a copy followed by a delete (S3 has no rename). If
+  the second step fails, the file exists under both names; nothing is lost.
 - Files with Windows line endings (CRLF) are saved back with Linux endings (LF).
 - Deleting or renaming the last file in a folder leaves the empty folder behind (it's hidden from the sidebar).
 - Files opened from the device (↗ tabs) can't be renamed or deleted from Maplenote.

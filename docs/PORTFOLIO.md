@@ -28,29 +28,33 @@ also wanted a real project to learn git, GitHub and software design on.
 - **CodeMirror 6 editor:** line numbers, find & replace, per-tab undo, word
   wrap, word/line counts.
 - **Markdown preview** with two layers of protection against malicious files.
+- **Pluggable storage:** a local folder or an Amazon S3 bucket, chosen by one
+  setting; S3 saves use conditional writes so the conflict rule holds even
+  with requests on different machines.
 
 ## Architecture
 ```
- Browser tab                               Python server (Flask)         Disk
+ Browser tab                               Python server (Flask)      Storage
 ┌───────────────────────────────────┐     ┌────────────────────────┐   ┌──────────────┐
-│ CodeMirror editor + Markdown view │JSON │ /api/files, /api/file  │   │ workspace    │
-│ tabs, autosave, drafts, conflicts │←───→│ versions (SHA-256)     │ ↔ │ folder only  │
-│ device files via File System API  │     │ 409 on stale saves     │   └──────────────┘
-└───────────────────────────────────┘     │ CSP + Host allowlist   │
+│ CodeMirror editor + Markdown view │JSON │ /api/files, /api/file  │   │ storage.py:  │
+│ tabs, autosave, drafts, conflicts │←───→│ versions (SHA-256)     │ ↔ │ local folder │
+│ device files via File System API  │     │ 409 on stale saves     │   │ or S3 bucket │
+└───────────────────────────────────┘     │ CSP + Host allowlist   │   └──────────────┘
   (device files never touch the server)   └────────────────────────┘
 ```
 
 ## Tech
 Python 3.11, Flask · JavaScript (no framework), CodeMirror 6, markdown-it,
-esbuild for vendoring · File System Access API, IndexedDB · pytest and Playwright (Python) for
-automated API and browser tests, run by GitHub Actions · git, GitHub pull requests · ChromeOS Linux
+esbuild for vendoring · File System Access API, IndexedDB · boto3 (Amazon S3) · pytest, moto and Playwright (Python) for
+automated API, storage and browser tests, run by GitHub Actions · git, GitHub pull requests · ChromeOS Linux
 environment · built with Claude Code.
 
 ## By the numbers
 - 5 reviewed pull requests in 2 days, from an empty repo to all v1 features
-- 62 automated tests (API + real-browser scenarios) run on every pull request;
+- 104 automated tests (API, storage on local disk and a fake S3, real-browser
+  scenarios) run on every pull request;
   each protection was proven by sabotaging it and watching the tests fail
-- 19 recorded design decisions, with alternatives and reasons
+- 20 recorded design decisions, with alternatives and reasons
 - 8 MB / 120,000-line log: opens in ~0.2 s, find reaches the end in ~1 s
 - 0 network requests outside the machine at runtime (works offline)
 - Injection test file: every payload rendered as text, nothing executed
@@ -72,11 +76,11 @@ why it's built that way.
   (path confinement, Host allowlist, Content-Security-Policy, HTML-disabled
   Markdown rendering), verified with automated injection tests.
 - Ran the project through a branch-and-pull-request workflow with code review,
-  a 62-test automated suite (pytest, Playwright) in GitHub Actions CI and a
+  a 104-test automated suite (pytest, Playwright) in GitHub Actions CI and a
   written decision log; directed an AI coding agent (Claude Code) through
   requirements, design and review.
 
 ## What's next
-Polish, then cloud-ready work (storage layer for S3, Dockerfile, production
-web server) and deployment to AWS with a login; see `docs/ROADMAP.md`. The AWS
+Polish, then the rest of the cloud-ready work (packaging for Lambda with a
+production web server) and deployment to AWS with a login; see `docs/ROADMAP.md`. The AWS
 side is being built in the `cloud-homelab` repo.
