@@ -28,10 +28,13 @@ jobs:
       - name: Install the browser the tests drive
         run: python -m playwright install --with-deps chromium
 
+      # "--browser-channel chromium" runs the full Chromium without a window, like
+      # real Chrome. Playwright's default "headless shell" is a stripped-down
+      # build that crashed on reopening files from the device after a reload.
       - name: Run the tests
         run: |
           set -o pipefail
-          python -m pytest --tracing retain-on-failure 2>&1 | tee pytest-output.txt
+          python -m pytest --browser-channel chromium --tracing retain-on-failure 2>&1 | tee pytest-output.txt
 
       # Show each failing test as an annotation on the PR, readable without
       # opening the full log.
