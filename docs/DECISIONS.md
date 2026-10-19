@@ -400,6 +400,11 @@ is hopeless, and the function's reserved concurrency (2) caps how fast
 anyone can try and what it can cost. Checking a password is deliberately
 slow, so the last accepted header is remembered and repeat requests skip
 the check.
+**Correction (2026-10-19, docs review):** the reserved concurrency of 2 was
+never set. Sandbox's Lambda limit is 10 copies at once, and AWS keeps 10
+unreserved, so nothing can be reserved there; the account limit of 10 is
+the cap instead (`cloud-homelab` DECISIONS.md, "Maplenote behind a Lambda
+function URL"). The reasoning above still holds, with 10 in place of 2.
 
 ## 2026-10-19: A sign-in page instead of the browser's sign-in box
 **Decision:** the stopgap password (previous entry) is now entered on a

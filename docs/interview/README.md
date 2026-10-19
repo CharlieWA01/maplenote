@@ -182,8 +182,9 @@ the architecture and why it's that way. That's what these stories are for.
   page that sets a signed session cookie, where the server stores only an
   scrypt hash, so the
   password never appears in AWS, Terraform state or logs. Made it fail
-  closed: on Lambda the app refuses to start without a password hash. Capped
-  the function at 2 concurrent copies to limit guessing speed and cost.
+  closed: on Lambda the app refuses to start without a password hash. Relied on
+  the sandbox account's Lambda limit (10 copies at once) to cap guessing
+  speed and cost.
   The deploy pipeline checks from outside that the URL answers "401, needs a
   password" and fails the deploy on anything else.
 - **Result:** A real HTTPS URL usable from any device, protected from the

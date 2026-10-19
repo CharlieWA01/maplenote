@@ -1,4 +1,4 @@
-"""Maplenote: a small, locally hosted text editor.
+"""Maplenote: a small, self-hosted text editor (on your computer or on AWS).
 
 The server has two jobs:
   1. Serve the web page (everything in static/).

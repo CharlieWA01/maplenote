@@ -65,6 +65,8 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   restoring a stored test file handle after a reload is gone in newer Chromium
 - Update the docs workflows (`docs-check`, `docs-history`) in both repos from
   `actions/checkout@v4` to v7 (v4 runs on a deprecated Node.js; still works)
+- Reserved concurrency of 2 for the Lambda function, if sandbox's account
+  limit is ever raised above 10 (a cap on cost and password guessing)
 - Keep `docs/DOCS-STANDARD.md` in one shared place (e.g. a template repo)
   instead of copying it between repos, once there are more than two
 
@@ -75,7 +77,10 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   days; changing the password signs every device out.
 - After a while idle, the first request on Lambda takes a second or two
   (a "cold start").
-
+- The hosted app has no request limit of its own and no lockout after wrong
+  passwords. Sandbox's Lambda limit of 10 copies at once is the cap (the
+  planned reserved concurrency of 2 can't be set there; see `cloud-homelab`
+  DECISIONS.md, 2026-10-19). A long random password keeps guessing hopeless.
 - In S3 storage, renaming is a copy followed by a delete (S3 has no rename). If
   the second step fails, the file exists under both names; nothing is lost.
 - Files with Windows line endings (CRLF) are saved back with Linux endings (LF).

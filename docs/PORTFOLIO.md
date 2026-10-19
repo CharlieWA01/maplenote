@@ -7,7 +7,9 @@ Details: `docs/journal/` (what happened), `docs/DECISIONS.md` (why),
 ## In one sentence
 A self-hosted, Notepad++-style text editor that runs as a small Python web
 server and is used in the browser: tabs, autosave, conflict detection, a real
-code editor and Markdown preview, designed from day one to move to AWS.
+code editor and Markdown preview. Designed from day one to move to AWS, and
+now live there: a Docker image on Lambda, notes in S3, deployed by GitHub
+Actions without stored keys.
 
 ## The problem
 I spend a lot of time in text files: notes, logs and config files, mostly on a
@@ -51,6 +53,8 @@ also wanted a real project to learn git, GitHub and software design on.
 │ device files via File System API  │     │ 409 on stale saves     │   │ or S3 bucket │
 └───────────────────────────────────┘     │ CSP + Host allowlist   │   └──────────────┘
   (device files never touch the server)   └────────────────────────┘
+  Hosted: browser → Lambda function URL (HTTPS) → the same server in a
+  Docker image on Lambda → S3. Locally: localhost → the server → a folder.
 ```
 
 ## Tech
@@ -61,10 +65,12 @@ automated API, storage and browser tests, run by GitHub Actions · git, GitHub p
 environment · built with Claude Code.
 
 ## By the numbers
-- 5 reviewed pull requests in 2 days, from an empty repo to all v1 features
-- 122 automated tests (API, storage on local disk and a fake S3, real-browser
-  scenarios) run on every pull request;
-  each protection was proven by sabotaging it and watching the tests fail
+- 15 reviewed pull requests in 3 days, from an empty repo to a live app on
+  AWS (v1 features in the first 5)
+- 127 automated tests: 122 (API, storage on local disk and a fake S3,
+  real-browser scenarios) run on every pull request, 5 more against the real
+  S3 bucket; each protection was proven by sabotaging it and watching the
+  tests fail
 - 24 recorded design decisions, with alternatives and reasons
 - 8 MB / 120,000-line log: opens in ~0.2 s, find reaches the end in ~1 s
 - 0 network requests outside the machine at runtime (works offline)
@@ -81,8 +87,11 @@ why it's built that way.
 ## Resume bullets (drafts; edit to taste)
 - Built a self-hosted, browser-based text editor (Python/Flask, JavaScript,
   CodeMirror 6) with autosave, crash recovery and optimistic-concurrency
-  conflict detection (content hashing, HTTP 409), designed for later AWS
-  deployment.
+  conflict detection (content hashing, HTTP 409), deployed to AWS Lambda.
+- Packaged the app as one Docker image that runs locally or on AWS Lambda
+  (Lambda Web Adapter, ECR, S3 storage with conditional writes), deployed on
+  every merge by GitHub Actions via OIDC with no stored AWS keys, and
+  checked after each deploy that the live URL still demands a password.
 - Hardened a local web app against path traversal, DNS rebinding and XSS
   (path confinement, Host allowlist, Content-Security-Policy, HTML-disabled
   Markdown rendering), verified with automated injection tests.
