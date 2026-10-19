@@ -16,3 +16,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-19 | [#6](https://github.com/CharlieWA01/maplenote/pull/6) | Adopt a shared documentation standard, backfill the record, automate it |
 | 2026-10-19 | [#7](https://github.com/CharlieWA01/maplenote/pull/7) | Decide hosting: a Docker image running on AWS Lambda |
 | 2026-10-19 | [#8](https://github.com/CharlieWA01/maplenote/pull/8) | Add an automated test suite, run on every PR |
+| 2026-10-19 | [#9](https://github.com/CharlieWA01/maplenote/pull/9) | Add a storage layer: local folder or S3 |
