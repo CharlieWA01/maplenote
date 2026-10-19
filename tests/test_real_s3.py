@@ -98,13 +98,34 @@ def test_files_are_encrypted_at_rest(store, s3, prefix):
     assert head["Metadata"][storage.S3Storage.VERSION_KEY] == version_of(b"secret plans")
 
 
-def test_the_deploy_role_cannot_open_files_outside_ci_check(s3):
-    """Least privilege: the GitHub role can't read or write real notes."""
+def test_the_deploy_role_cannot_change_files_outside_ci_check(s3):
+    """Least privilege: the GitHub role can't write or delete real notes."""
     from botocore.exceptions import ClientError
 
-    with pytest.raises(ClientError) as read:
-        s3.get_object(Bucket=BUCKET, Key="scratch.txt")
     with pytest.raises(ClientError) as write:
         s3.put_object(Bucket=BUCKET, Key="written-by-ci.txt", Body=b"x")
-    assert read.value.response["Error"]["Code"] == "AccessDenied"
+    with pytest.raises(ClientError) as delete:
+        s3.delete_object(Bucket=BUCKET, Key="written-by-ci.txt")
     assert write.value.response["Error"]["Code"] == "AccessDenied"
+    assert delete.value.response["Error"]["Code"] == "AccessDenied"
+
+
+def test_the_deploy_role_cannot_read_files_outside_ci_check(s3):
+    """Least privilege: the GitHub role can't open real notes.
+
+    This needs a file that exists. For a missing file, S3 answers "no such
+    file" to anyone allowed to list the bucket, whatever their read access
+    (it reveals nothing a listing wouldn't), so asking for a made-up name
+    proves nothing. The role can't create a file outside ci-check/ either,
+    so this checks a real one, and is skipped while there are none.
+    """
+    from botocore.exceptions import ClientError
+
+    listed = s3.list_objects_v2(Bucket=BUCKET).get("Contents", [])
+    outside = [item["Key"] for item in listed if not item["Key"].startswith(CI_FOLDER)]
+    if not outside:
+        pytest.skip("No files outside ci-check/ yet to try reading")
+
+    with pytest.raises(ClientError) as read:
+        s3.get_object(Bucket=BUCKET, Key=outside[0])
+    assert read.value.response["Error"]["Code"] == "AccessDenied"

@@ -31,6 +31,10 @@ also wanted a real project to learn git, GitHub and software design on.
 - **Pluggable storage:** a local folder or an Amazon S3 bucket, chosen by one
   setting; S3 saves use conditional writes so the conflict rule holds even
   with requests on different machines.
+- **Checked on real AWS:** after each merge that touches storage, GitHub
+  Actions signs in to AWS without stored keys (OIDC) and runs the storage
+  code against a real, private, encrypted S3 bucket, with a role that can
+  only touch a scratch folder.
 
 ## Architecture
 ```

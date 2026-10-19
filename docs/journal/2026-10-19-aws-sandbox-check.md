@@ -32,11 +32,23 @@ deploy workflow will use.
   bucket encryption or IAM. So those two test something only real AWS can
   show.
 
+- **"No such file" isn't "allowed to read".** The failed test asked for a
+  file that doesn't exist. For a missing file, S3 answers "no such file" to
+  anyone who may list the bucket, whatever their read access, because a
+  listing would reveal that anyway. So the role wasn't over-privileged; the
+  test proved nothing. It's now two tests: writing and deleting outside
+  `ci-check/` must be refused (works on any bucket), and reading must be
+  refused for a file that really exists there (skipped until one does; the
+  role can't create one itself). Against moto all three IAM checks fail, as
+  they should, since moto doesn't enforce IAM.
+
 ## How it was verified
 - `python -m pytest`: 104 passed, 4 skipped (the real-S3 tests, as intended).
 - Against moto: 2 passed, 2 failed as expected (see above).
-- Still to do: the first real run, after the sandbox apply and the
-  `MAPLENOTE_S3_BUCKET` variable. Result goes here.
+- **First real run** (after Charlie's apply and merging #11): GitHub signed
+  in to AWS through the role, and the API, race and encryption tests passed
+  on real S3. The access test failed: reading `scratch.txt` outside
+  `ci-check/` answered `NoSuchKey`, not `AccessDenied`.
 
 ## Impact
 Nothing changes for the user yet. Each run costs well under a cent in S3
