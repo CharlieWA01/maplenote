@@ -15,3 +15,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-18 | [#5](https://github.com/CharlieWA01/maplenote/pull/5) | Add a Markdown preview for .md files |
 | 2026-10-19 | [#6](https://github.com/CharlieWA01/maplenote/pull/6) | Adopt a shared documentation standard, backfill the record, automate it |
 | 2026-10-19 | [#7](https://github.com/CharlieWA01/maplenote/pull/7) | Decide hosting: a Docker image running on AWS Lambda |
+| 2026-10-19 | [#8](https://github.com/CharlieWA01/maplenote/pull/8) | Add an automated test suite, run on every PR |
