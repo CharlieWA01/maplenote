@@ -31,7 +31,7 @@ also wanted a real project to learn git, GitHub and software design on.
 - **Pluggable storage:** a local folder or an Amazon S3 bucket, chosen by one
   setting; S3 saves use conditional writes so the conflict rule holds even
   with requests on different machines.
-- **Runs on AWS Lambda as a Docker image:** one image (Flask, gunicorn and
+- **Live on AWS Lambda as a Docker image** (since 2026-10-19): one image (Flask, gunicorn and
   AWS's Lambda Web Adapter) that also runs on any machine with Docker.
   GitHub Actions builds it, pushes it to a private registry (ECR), deploys
   it and checks the live URL asks for a password, all without stored AWS

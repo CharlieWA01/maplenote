@@ -96,5 +96,12 @@ on purpose, each failed: cookies accepted without a valid signature (1),
 no 30-day limit (1), the page ignoring a 401 (1), the API left open to
 signed-out requests (6).
 
+## Live
+After #14 deployed, Charlie opened the URL in Chrome, signed in on the new
+page and used Maplenote on AWS: notes saved to the S3 bucket's `notes/`
+folder, served by Lambda, deployed by GitHub with no stored keys. Every
+`deploy-sandbox` run since the function existed has passed its outside
+check (401 without the password).
+
 ## In my own words
 _(Charlie: what you learned, what surprised you, what you'd do differently.)_
