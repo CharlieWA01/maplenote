@@ -62,10 +62,10 @@ environment · built with Claude Code.
 
 ## By the numbers
 - 5 reviewed pull requests in 2 days, from an empty repo to all v1 features
-- 115 automated tests (API, storage on local disk and a fake S3, real-browser
+- 122 automated tests (API, storage on local disk and a fake S3, real-browser
   scenarios) run on every pull request;
   each protection was proven by sabotaging it and watching the tests fail
-- 23 recorded design decisions, with alternatives and reasons
+- 24 recorded design decisions, with alternatives and reasons
 - 8 MB / 120,000-line log: opens in ~0.2 s, find reaches the end in ~1 s
 - 0 network requests outside the machine at runtime (works offline)
 - Injection test file: every payload rendered as text, nothing executed
@@ -87,7 +87,7 @@ why it's built that way.
   (path confinement, Host allowlist, Content-Security-Policy, HTML-disabled
   Markdown rendering), verified with automated injection tests.
 - Ran the project through a branch-and-pull-request workflow with code review,
-  a 115-test automated suite (pytest, Playwright) in GitHub Actions CI and a
+  a 122-test automated suite (pytest, Playwright) in GitHub Actions CI and a
   written decision log; directed an AI coding agent (Claude Code) through
   requirements, design and review.
 

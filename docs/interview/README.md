@@ -178,8 +178,9 @@ the architecture and why it's that way. That's what these stories are for.
   my notes open to anyone who found it.
 - **Action:** Weighed three options: AWS-signed requests only (safe but not
   usable in a browser), leaving it open with an obscure URL (breaks the
-  rule), or a stopgap password. Chose a single password with HTTP Basic
-  authentication, where the server stores only an scrypt hash, so the
+  rule), or a stopgap password. Chose a single password on a small sign-in
+  page that sets a signed session cookie, where the server stores only an
+  scrypt hash, so the
   password never appears in AWS, Terraform state or logs. Made it fail
   closed: on Lambda the app refuses to start without a password hash. Capped
   the function at 2 concurrent copies to limit guessing speed and cost.
@@ -189,6 +190,12 @@ the architecture and why it's that way. That's what these stories are for.
   first request, for a few cents a month, with about 40 lines of code that
   Cognito will replace. Every protection was tested by switching it off and
   watching the tests fail.
+- **Twist:** the first version used the browser's built-in sign-in box
+  (HTTP Basic). Every test passed locally, but on AWS Chrome showed only a
+  JSON error: the protection held, but the box never appeared, because the
+  Lambda URL drops the header that triggers it. Replaced the box with a
+  sign-in page within the hour; the live check had caught what no local
+  test could.
 - **Lesson:** a stopgap is fine if it's honest about being one and fails
   safe: the dangerous mistake (a forgotten setting) produces an outage, not
   an exposure.

@@ -105,6 +105,10 @@ async function api(method, url, body) {
     options.body = JSON.stringify(body);
   }
   const response = await fetch(url, options);
+  // Signed out (only happens when hosted with a password): go and sign in again.
+  if (response.status === 401) {
+    location.href = "/login";
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(data.error || `Request failed (${response.status})`);

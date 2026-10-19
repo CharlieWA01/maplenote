@@ -1,10 +1,19 @@
 """A single password in front of the whole app, for when it's reachable online.
 
-Until Cognito login exists, a hosted Maplenote asks for one password using
-HTTP Basic authentication: the browser shows its own sign-in box, remembers
-the answer for the session and sends it with every request (page, scripts
-and API calls alike). The connection is HTTPS, so the password is encrypted
-on the way.
+Until Cognito login exists, a hosted Maplenote asks for one password on its
+own sign-in page (/login). A correct password earns a session cookie, which
+the browser then sends with every request (page, scripts and API calls
+alike) for 30 days, or until "/logout". The connection is HTTPS, so the
+password and the cookie are encrypted on the way.
+
+Why a page and not the browser's built-in sign-in box (HTTP Basic): AWS
+Lambda function URLs drop the reply header that makes the browser show that
+box, so on AWS the browser just showed an error. Basic authentication still
+works for scripts (`curl -u any:password`).
+
+The cookie holds the time it was issued and a signature made with the
+password hash as the key (HMAC-SHA256). It can't be forged without the
+hash, and changing the password signs everyone out.
 
 The server is given only a *hash* of the password (MAPLENOTE_PASSWORD_HASH),
 never the password itself, so the AWS console, Terraform state and logs
@@ -12,12 +21,14 @@ never contain it. Make a hash with:
 
     python auth.py
 
-The username in the sign-in box is ignored; only the password counts.
+For Basic authentication the username is ignored; only the password counts.
 Locally the setting is empty and nothing changes.
 """
 import base64
 import getpass
+import hashlib
 import hmac
+import time
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -26,6 +37,36 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # request. So the last header that matched is remembered, and an identical
 # one is accepted without redoing the slow check.
 _last_accepted = None
+
+
+SESSION_COOKIE = "maplenote_session"
+SESSION_SECONDS = 30 * 24 * 60 * 60  # 30 days
+
+
+def _signature(issued, password_hash):
+    message = f"maplenote-session:{issued}".encode()
+    return hmac.new(password_hash.encode(), message, hashlib.sha256).hexdigest()
+
+
+def new_session(password_hash, now=None):
+    """A session cookie value: "<issued time>.<signature>"."""
+    issued = int(time.time() if now is None else now)
+    return f"{issued}.{_signature(issued, password_hash)}"
+
+
+def session_is_valid(value, password_hash, now=None):
+    """True for a cookie this server issued, with the current password, under 30 days ago."""
+    issued, _, signature = (value or "").partition(".")
+    if not issued.isdigit():
+        return False
+    now = time.time() if now is None else now
+    if not 0 <= now - int(issued) < SESSION_SECONDS:
+        return False
+    return hmac.compare_digest(signature, _signature(int(issued), password_hash))
+
+
+def password_is_right(password, password_hash):
+    return check_password_hash(password_hash, password)
 
 
 def password_from_header(header):

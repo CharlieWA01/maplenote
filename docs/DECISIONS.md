@@ -400,3 +400,29 @@ is hopeless, and the function's reserved concurrency (2) caps how fast
 anyone can try and what it can cost. Checking a password is deliberately
 slow, so the last accepted header is remembered and repeat requests skip
 the check.
+
+## 2026-10-19: A sign-in page instead of the browser's sign-in box
+**Decision:** the stopgap password (previous entry) is now entered on a
+small sign-in page, `/login`, a plain HTML form with no script. A right
+password gets a session cookie: the time it was issued plus an HMAC-SHA256
+signature keyed with the password hash, `HttpOnly`, `Secure`,
+`SameSite=Lax`, valid 30 days. Signed out, the page redirects to `/login`
+and other requests get a 401, which sends an open page back to `/login`.
+`/logout` signs out. HTTP Basic still works for scripts (`curl -u`), but
+the reply no longer carries the `WWW-Authenticate` header.
+**Supersedes:** the "sent with HTTP Basic authentication" part of the
+entry above; the hash, the fail-closed start-up check and everything else
+stand.
+**Why:** on the live Lambda URL Chrome showed only the 401's JSON error,
+never its sign-in box. The box appears only when the reply carries a
+`WWW-Authenticate` header, so the function URL evidently doesn't pass it
+through (inferred from the symptom: the password check itself worked).
+A form works the same everywhere, adds a way to sign out, and is the shape
+the Cognito login will take (a page, then a cookie).
+**Alternatives:** credentials in the address (`https://user:pass@…`):
+Chrome restricts them and they'd end up in history; API Gateway in front
+to pass the header through (a new resource for a stopgap); server-side
+sessions (needs storage; a signed cookie needs none).
+**Trade-offs:** about 60 more lines than Basic. A copied cookie works for
+up to 30 days on another machine, until the password changes. No
+per-device sign-out yet.
