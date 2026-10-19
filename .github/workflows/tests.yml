@@ -1,5 +1,6 @@
 # Runs the whole test suite (API tests and browser tests) on every pull
-# request and every push to main. See README.md, "Running the tests".
+# request and every push to main, and checks the Docker image builds and
+# runs. See README.md, "Running the tests".
 name: tests
 
 on:
@@ -76,3 +77,40 @@ jobs:
           name: playwright-traces
           path: test-results/
           retention-days: 7
+
+  # Builds the Docker image the deploy workflow ships, and runs it the way
+  # Lambda does: read-only disk except /tmp, as a non-root user. Catches a
+  # broken Dockerfile on the pull request instead of during a deploy.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the image
+        run: docker build --provenance=false --platform linux/amd64 -t maplenote:test .
+
+      - name: Run it with a local folder and check it serves and saves
+        run: |
+          mkdir data && sudo chown 1000 data
+          docker run -d --name maplenote --read-only --tmpfs /tmp -p 8000:8080 -v "$PWD/data:/data" maplenote:test
+          for i in $(seq 20); do curl -sf http://localhost:8000/ > /dev/null && break; sleep 0.5; done
+          curl -sf http://localhost:8000/ | grep -q '<title>'
+          curl -sf -X PUT -H 'Content-Type: application/json' -d '{"content":"hello"}' 'http://localhost:8000/api/file?path=a.txt'
+          test "$(cat data/a.txt)" = hello
+          docker rm -f maplenote
+
+      - name: With a password set, it refuses requests without it
+        run: |
+          hash=$(docker run --rm maplenote:test python -c "from werkzeug.security import generate_password_hash as h; print(h('ci-only password'))")
+          docker run -d --name maplenote --read-only --tmpfs /tmp --tmpfs /data:uid=1000 -p 8000:8080 -e MAPLENOTE_PASSWORD_HASH="$hash" maplenote:test
+          for i in $(seq 20); do curl -s http://localhost:8000/ > /dev/null && break; sleep 0.5; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/files)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -u x:'ci-only password' http://localhost:8000/api/files)" = 200
+
+      - name: Refuses to start on Lambda without a password
+        run: |
+          ! docker run --rm -e AWS_LAMBDA_FUNCTION_NAME=test maplenote:test python -c "import app"
+
+      - name: Show the app's output if anything failed
+        if: failure()
+        run: docker logs maplenote || true

@@ -330,3 +330,73 @@ know they test something moto can't).
 item from the storage-layer decision, and proves the sign-in path the
 future deploy workflow will use. **Trade-off:** a problem with real S3
 shows up after merge, not before. **Cost:** under a cent per run.
+
+## 2026-10-19: The Docker image: slim Python, gunicorn, AWS's Lambda Web Adapter
+**Decision:** one `Dockerfile` for every place Maplenote runs: the official
+`python:3.11-slim` image, the app's packages plus gunicorn and boto3
+(`requirements-image.txt`), and AWS's **Lambda Web Adapter** (1.1.0) copied
+into `/opt/extensions`. On Lambda the adapter turns Lambda's events into
+ordinary HTTP requests to gunicorn; anywhere else it never starts, and the
+same image serves the browser directly (`docker run -p 8000:8080 -v
+~/maplenote-files:/data maplenote`). gunicorn runs **one worker process**
+with 4 threads, as user 1000 (not root), with nothing written outside
+`/tmp` and `/data`. The image is built for **x86_64**, and each one is
+tagged with its git commit in an ECR repository whose tags can't be
+reused.
+- A `deploy-sandbox` workflow builds and pushes the image after each merge
+  that changes the app, points the Lambda function at it, then checks from
+  outside that the URL answers 401 (asks for the password). A 200 fails the
+  deploy, since it would mean the notes are open.
+- The `tests` workflow gains an `image` job: every PR builds the image and
+  runs it the way Lambda does (read-only disk, non-root), with and without
+  a password.
+
+**Alternatives:**
+- *AWS's own Lambda base image* (`public.ecr.aws/lambda/python`) with a
+  handler (Mangum/awsgi-style): no adapter, but the image would only run on
+  Lambda, losing the "same image on the homelab" point of the hosting
+  decision.
+- *Several gunicorn workers:* more parallel requests locally, but the
+  local-folder storage guards saves with a lock that only works inside one
+  process. Threads keep the lock valid.
+- *arm64 (Graviton):* about 20% cheaper per second on Lambda (fractions of
+  a cent here), but GitHub's standard runners would have to emulate ARM,
+  making builds several times slower.
+- *A mutable `latest` tag:* simpler, but "which code is running?" would
+  have no reliable answer, and a rollback couldn't name a version.
+
+**Why:** the hosting decision (Docker on Lambda, portable to Proxmox) with
+the fewest moving parts: a standard base image, one small AWS program, and
+the same gunicorn command everywhere.
+**Trade-offs:** the image is about 250 MB (boto3 is most of it; ~80 MB
+compressed in ECR, cents a month for the 5 kept). Cold starts after idle
+take a second or two. The adapter comes from AWS's public registry, pinned
+by version.
+
+## 2026-10-19: A password in front of the hosted app until Cognito login exists
+**Decision:** when `MAPLENOTE_PASSWORD_HASH` is set, every request (the
+page, its scripts and the API) needs one password, sent with HTTP Basic
+authentication: the browser shows its own sign-in box and remembers the
+answer until it's closed. The server holds only a **scrypt hash** of the
+password (`python auth.py` makes one), so neither AWS, Terraform state nor
+logs ever see the password. The username is ignored. On Lambda, Maplenote
+**refuses to start without a hash**, so a missing setting fails closed
+instead of putting the notes online open. Locally nothing changes.
+**Alternatives:**
+- *AWS-signed requests only* (function URL with IAM auth): nothing new to
+  build, but a browser can't open the URL, only `curl` with AWS
+  credentials, so there'd be nothing to click until Cognito.
+- *No protection, URL kept secret:* breaks the project's rule that nothing
+  goes on the public internet without a login, and the URL would read and
+  write the real bucket.
+- *Cognito now:* the real answer, but a step of its own (user pool, hosted
+  sign-in page, token checks); planned next.
+
+**Why:** keeps the rule, gives a URL Charlie can open in Chrome today, and
+is about 40 lines that Cognito replaces later.
+**Trade-offs:** one shared password, no sign-out button (close the browser),
+and no lockout after wrong guesses. With a long random password guessing
+is hopeless, and the function's reserved concurrency (2) caps how fast
+anyone can try and what it can cost. Checking a password is deliberately
+slow, so the last accepted header is remembered and repeat requests skip
+the check.

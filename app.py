@@ -19,6 +19,9 @@ API
   DELETE /api/file?path=notes.md  -> deletes the file
   POST   /api/rename  with body {"from": "a.txt", "to": "b.txt"}  -> renames a file
 
+When a password is set (MAPLENOTE_PASSWORD_HASH, on AWS), every request,
+pages included, must carry it; otherwise the reply is 401. See auth.py.
+
 A "version" is a fingerprint of a file's contents. The browser sends back the
 version it last saw when saving; if the file has changed since (another tab,
 another device, another program), the save is refused so nothing is silently
@@ -27,6 +30,7 @@ overwritten.
 from flask import Flask, abort, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
+import auth
 import config
 import storage
 from storage import version_of
@@ -34,6 +38,9 @@ from storage import version_of
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 # Leave a little room above the file limit for the JSON wrapping around the text.
 app.config["MAX_CONTENT_LENGTH"] = config.MAX_FILE_BYTES + 64 * 1024
+
+if config.ON_LAMBDA and not config.PASSWORD_HASH:
+    raise RuntimeError("Refusing to run on AWS Lambda without MAPLENOTE_PASSWORD_HASH (see auth.py).")
 
 STORAGE = storage.from_config(config)
 SCRATCH = config.SCRATCH_FILE
@@ -45,8 +52,31 @@ SCRATCH = config.SCRATCH_FILE
 def check_host():
     """Refuse requests addressed to a host name we don't recognise."""
     hostname = request.host.rsplit(":", 1)[0]
-    if hostname not in config.ALLOWED_HOSTS:
+    if not host_is_allowed(hostname):
         abort(403, f"Host '{hostname}' is not allowed. Add it to ALLOWED_HOSTS in config.py.")
+
+
+def host_is_allowed(hostname):
+    for allowed in config.ALLOWED_HOSTS:
+        if hostname == allowed or (allowed.startswith(".") and hostname.endswith(allowed)):
+            return True
+    return False
+
+
+@app.before_request
+def check_password():
+    """When a password is set (on AWS), refuse requests that don't carry it.
+
+    The 401 reply with a WWW-Authenticate header makes the browser show its
+    sign-in box. See auth.py.
+    """
+    if config.PASSWORD_HASH and not auth.is_allowed(
+        request.headers.get("Authorization"), config.PASSWORD_HASH
+    ):
+        response = jsonify(error="Maplenote needs its password.")
+        response.status_code = 401
+        response.headers["WWW-Authenticate"] = 'Basic realm="Maplenote", charset="UTF-8"'
+        return response
 
 
 # Rules the browser enforces on the page, as a second line of defence for the

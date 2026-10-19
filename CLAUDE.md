@@ -42,6 +42,13 @@ appear under Charlie's account).
   conditional writes (If-Match / If-None-Match) for the 409 conflict rule;
   its tests run against a fake S3 (moto), never real AWS.
 - `config.py`: every setting, each overridable by a `MAPLENOTE_*` env var.
+- `auth.py`: one password (HTTP Basic, checked against an scrypt hash in
+  `MAPLENOTE_PASSWORD_HASH`) in front of everything when hosted; off locally.
+  On Lambda the app refuses to start without it. Cognito replaces it later.
+- `Dockerfile`: the one image for Lambda and anywhere else (gunicorn, one
+  worker, plus AWS's Lambda Web Adapter). The `deploy-sandbox` workflow
+  ships it; the AWS resources are Terraform in the `cloud-homelab` repo
+  (`terraform/sandbox/maplenote-app.tf`).
 - `static/`: plain HTML/CSS/JS, no build step. `app.js` holds tabs, sidebar
   and file actions. A tab's `kind` says where its file lives: `workspace`
   (via the server API), `device` (opened with "Open…", read and saved by the

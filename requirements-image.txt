@@ -1,0 +1,5 @@
+# What the Docker image installs (see Dockerfile): the app's own packages,
+# plus the production web server and the AWS library for S3 storage.
+-r requirements.txt
+gunicorn==26.2.0
+boto3==1.43.103

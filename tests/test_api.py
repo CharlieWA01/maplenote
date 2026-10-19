@@ -1,6 +1,16 @@
 """Tests for the server's JSON API (app.py), without a browser."""
+import base64
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import auth
 import config
 import pytest
+from werkzeug.security import generate_password_hash
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def url(path):
@@ -173,3 +183,98 @@ def test_security_headers_are_sent(client):
 def test_errors_are_json(client):
     response = client.get(url("nope.txt"))
     assert response.is_json and "error" in response.get_json()
+
+
+def test_host_names_starting_with_a_dot_allow_any_name_ending_with_it(client, monkeypatch):
+    """How the AWS address is allowed: AWS picks the first part of the name."""
+    monkeypatch.setattr(config, "ALLOWED_HOSTS", ["localhost", ".lambda-url.us-east-2.on.aws"])
+
+    def status(host):
+        return client.get("/api/files", headers={"Host": host}).status_code
+
+    assert status("abc123.lambda-url.us-east-2.on.aws") == 200
+    assert status("lambda-url.us-east-2.on.aws.evil.example") == 403
+    assert status("evil-lambda-url.us-east-2.on.aws") == 403
+    # Names without a leading dot still have to match exactly.
+    assert status("evil-localhost") == 403
+
+
+# ------------------------------------------- password (when hosted online)
+
+def basic(password, user="charlie"):
+    token = base64.b64encode(f"{user}:{password}".encode()).decode()
+    return {"Authorization": f"Basic {token}"}
+
+
+@pytest.fixture
+def password(monkeypatch):
+    """Turns on the password check, as on AWS, with the password 'correct horse'."""
+    monkeypatch.setattr(config, "PASSWORD_HASH", generate_password_hash("correct horse"))
+    monkeypatch.setattr(auth, "_last_accepted", None)
+    return "correct horse"
+
+
+def test_without_a_password_setting_nothing_is_asked(client):
+    assert client.get("/").status_code == 200
+    assert client.get("/api/files").status_code == 200
+
+
+def test_password_is_required_for_pages_files_and_api(client, password):
+    for path in ("/", "/static/app.js", "/api/files", url("scratch.txt")):
+        response = client.get(path)
+        assert response.status_code == 401, path
+        # This header is what makes the browser show its sign-in box.
+        assert response.headers["WWW-Authenticate"].startswith('Basic realm="Maplenote"')
+
+
+def test_wrong_or_malformed_passwords_are_refused(client, password):
+    for headers in (
+        basic("wrong horse"),
+        basic(""),
+        {"Authorization": "Basic not-base64!"},
+        {"Authorization": "Bearer correct horse"},
+        {"Authorization": "Basic " + base64.b64encode(b"no colon here").decode()},
+    ):
+        assert client.get("/api/files", headers=headers).status_code == 401, headers
+
+
+def test_right_password_lets_everything_through(client, password):
+    headers = basic(password)
+    assert client.get("/", headers=headers).status_code == 200
+    saved = client.put(url("a.txt"), json={"content": "hi"}, headers=headers)
+    assert saved.status_code == 200
+    # The second request is accepted from memory, without the slow hash check.
+    assert auth._last_accepted == headers["Authorization"]
+    assert client.get(url("a.txt"), headers=headers).get_json()["content"] == "hi"
+
+
+def test_the_username_is_ignored(client, password):
+    assert client.get("/api/files", headers=basic(password, user="anyone")).status_code == 200
+
+
+def test_remembered_password_doesnt_let_a_different_one_in(client, password):
+    assert client.get("/api/files", headers=basic(password)).status_code == 200
+    assert client.get("/api/files", headers=basic("guess")).status_code == 401
+
+
+def test_refuses_to_start_on_lambda_without_a_password(workspace):
+    """A missing setting must not put the notes online unprotected."""
+    env = {**os.environ, "AWS_LAMBDA_FUNCTION_NAME": "cwa-maplenote", "MAPLENOTE_PASSWORD_HASH": ""}
+    result = subprocess.run(
+        [sys.executable, "-c", "import app"], cwd=ROOT, env=env, capture_output=True, text=True
+    )
+    assert result.returncode != 0
+    assert "without MAPLENOTE_PASSWORD_HASH" in result.stderr
+
+    env["MAPLENOTE_PASSWORD_HASH"] = generate_password_hash("correct horse")
+    result = subprocess.run([sys.executable, "-c", "import app"], cwd=ROOT, env=env)
+    assert result.returncode == 0
+
+
+def test_file_size_limit_can_be_set_per_environment(workspace):
+    env = {**os.environ, "MAPLENOTE_MAX_FILE_BYTES": "5242880"}
+    result = subprocess.run(
+        [sys.executable, "-c", "import config; print(config.MAX_FILE_BYTES)"],
+        cwd=ROOT, env=env, capture_output=True, text=True,
+    )
+    assert result.stdout.strip() == "5242880"

@@ -23,7 +23,12 @@ files in one folder on your computer, and you edit them in a browser tab.
   default), or an Amazon S3 bucket when Maplenote is hosted on AWS
   (`MAPLENOTE_STORAGE=s3` plus `MAPLENOTE_S3_BUCKET`). The server code is the
   same either way.
-- **`config.py`** holds the settings: storage, workspace folder, port, size limit.
+- **`config.py`** holds the settings: storage, workspace folder, port, size limit,
+  password.
+- **`auth.py`** is the password check for when Maplenote is online (on AWS);
+  locally there's no password.
+- **`Dockerfile`** packages all of it as one Docker image, which runs on AWS
+  Lambda or on any machine with Docker (see "Running it in Docker").
 - **`static/`** is the page itself: all the editing happens in the browser.
   Which tabs you had open is remembered by the browser, so a refresh restores them.
   The editing area is [CodeMirror 6](https://codemirror.net/) and the Markdown
@@ -122,6 +127,21 @@ never pass through the server.
 - Saving back needs Chrome or Edge at **http://localhost:8000**. Other
   browsers, or the `penguin.linux.test` address, can still open files, but
   Save downloads a copy instead.
+
+## Running it in Docker
+
+The same image that runs on AWS runs on any Linux machine with Docker (a
+homelab server, for example). Your files stay in a folder on that machine:
+
+```bash
+docker build -t maplenote .
+docker run --rm -p 8000:8080 -v ~/maplenote-files:/data maplenote
+```
+
+Then open **http://localhost:8000**. To require a password, make a hash with
+`python auth.py` and add `-e MAPLENOTE_PASSWORD_HASH='<the hash>'` (single
+quotes: the hash contains `$` signs). Hosting on AWS: see
+[`docs/runbooks/deploy-sandbox.md`](docs/runbooks/deploy-sandbox.md).
 
 ## Running the tests
 
