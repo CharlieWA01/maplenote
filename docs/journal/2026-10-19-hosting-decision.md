@@ -32,6 +32,3 @@ against current AWS pricing when the infrastructure is designed.
 ## Impact
 A clear path to AWS that keeps the monthly bill in cents and keeps the
 Docker image portable to the homelab.
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

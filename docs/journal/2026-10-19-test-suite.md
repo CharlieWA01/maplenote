@@ -66,6 +66,3 @@ GitHub Actions on every pull request, before the storage-layer refactor.
 ## Impact
 Every future PR is checked automatically, in both the API and a real
 browser. The storage layer can now be built with a safety net.
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

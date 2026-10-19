@@ -75,6 +75,3 @@ evening (see the next journal entry).
 A working local editor on day one, with the safety rules in place before any
 features, and a development workflow (GitHub + Chromebook) that every later
 step reused.
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

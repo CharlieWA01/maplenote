@@ -42,6 +42,3 @@ and labelled cases; the `docs-history` append step was run against a copy of
 Every future PR in both repos leaves a written trail, and the first two days
 of Maplenote are captured in a form ready for a resume or interview. Cost:
 one extra bot commit on `main` per merge.
-
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_

@@ -207,6 +207,8 @@ record Charlie's own.
 **Trade-offs:** the history workflow commits to `main` after each merge, so
 `git pull` after merging brings down one extra commit. The standard is
 copied between repos, so it has to be kept in sync by hand for now.
+*Partly superseded:* the "In my own words" section is gone (see "No 'In my
+own words' section in the journal", 2026-10-19).
 
 ## 2026-10-19: Host on AWS as a Docker image running on Lambda
 **Decision:** Package Maplenote as a Docker image (Flask + gunicorn + AWS's
@@ -431,3 +433,19 @@ sessions (needs storage; a signed cookie needs none).
 **Trade-offs:** about 60 more lines than Basic. A copied cookie works for
 up to 30 days on another machine, until the password changes. No
 per-device sign-out yet.
+
+## 2026-10-19: No "In my own words" section in the journal
+
+**Decision:** drop the "In my own words" section from the journal template
+and from every existing entry, in both repos, and remove the rule that
+reserved it for Charlie (`CLAUDE.md`, `docs/DOCS-STANDARD.md`).
+**Supersedes:** the "In my own words" part of "A documentation standard
+shared across projects" (above); the rest of that entry stands.
+**Alternatives:** keep the section and fill it in later (every one was
+still blank after three days); keep it optional (an empty heading in every
+entry is noise).
+**Why:** Charlie's call. The sections weren't being written, and the
+interview stories, which Charlie rehearses out loud, are where the
+explaining-it-yourself practice happens instead.
+**Trade-off:** the journal is now entirely Claude's write-up of the facts,
+with nothing in Charlie's voice; the interview stories carry that load.

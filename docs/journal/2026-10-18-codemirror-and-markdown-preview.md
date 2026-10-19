@@ -64,8 +64,5 @@ All five feature steps of version 1 done in two days, from a blank repo.
 What's left: polish, then the cloud-ready work (storage layer, Dockerfile,
 production server) and going online with a login on AWS.
 
-## In my own words
-_(Charlie: what you learned, what surprised you, what you'd do differently.)_
-
 [pr4]: https://github.com/CharlieWA01/maplenote/pull/4
 [pr5]: https://github.com/CharlieWA01/maplenote/pull/5
