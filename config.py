@@ -6,8 +6,18 @@ Each setting can be overridden with an environment variable, for example:
 import os
 from pathlib import Path
 
-# The folder Maplenote reads and writes. It never touches anything outside it.
+# Where files live: "local" (a folder on this computer) or "s3" (an Amazon S3
+# bucket, for when Maplenote is hosted on AWS). See storage.py.
+STORAGE = os.environ.get("MAPLENOTE_STORAGE", "local")
+
+# For "local": the folder Maplenote reads and writes. It never touches anything outside it.
 WORKSPACE = Path(os.environ.get("MAPLENOTE_WORKSPACE", "~/maplenote-files"))
+
+# For "s3": the bucket, and optionally a prefix ("folder") inside it, such as
+# "notes". The AWS region and credentials come from the usual AWS settings
+# (on Lambda, from the function's role; never stored here).
+S3_BUCKET = os.environ.get("MAPLENOTE_S3_BUCKET", "")
+S3_PREFIX = os.environ.get("MAPLENOTE_S3_PREFIX", "")
 
 # The always-open scratch pad, relative to the workspace. Created if missing.
 SCRATCH_FILE = "scratch.txt"

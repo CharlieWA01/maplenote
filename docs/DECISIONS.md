@@ -270,3 +270,42 @@ a few places where autosave timing matters; the test tool is a year old (it
 only affects testing, never the app). Device-file tests replace only
 the native file picker (it can't be clicked by a test) with real file
 handles from the browser's private storage.
+
+## 2026-10-19: A storage layer with local and S3 backends, tested against a fake S3
+**Decision:** All file access moves out of `app.py` into `storage.py`, behind
+one small interface (list, read, version, write, create, delete, rename) with
+two backends: `LocalStorage` (the workspace folder, the default) and
+`S3Storage` (an S3 bucket, optionally under a prefix), chosen with
+`MAPLENOTE_STORAGE`. Backends report problems as shared exceptions
+(`NotFound`, `Conflict`, …) that `app.py` maps to HTTP statuses, so the API
+code is identical for both.
+- **Conflict detection on S3** uses S3's conditional writes: a save checks the
+  stored version, then writes with `If-Match: <ETag>` (or `If-None-Match: *`
+  for a file that doesn't exist yet). S3 itself refuses the write with 412 if
+  anything changed in between, which Maplenote reports as the usual 409.
+  This matters on Lambda, where two saves can run on different machines and
+  an in-memory lock (what `LocalStorage` uses) can't help.
+- **Versions stay content fingerprints** (SHA-256), as before. S3Storage also
+  stores the version in the object's metadata, so checking for changes (the
+  page's `/api/stat` calls) reads only the object's headers. Objects uploaded
+  some other way have no stored version; their contents are hashed instead.
+- **boto3 is imported only when S3 is used**, so running locally needs no new
+  packages. boto3 and moto are in `requirements-dev.txt` for the tests; adding
+  boto3 to the deployed package is part of the packaging step.
+
+**Alternatives:**
+- *Use S3's ETag as the version:* fewer reads, but the version would differ
+  between backends and change meaning if files were ever uploaded in parts.
+- *Test the S3 backend against a real bucket:* the truest test, but needs AWS
+  credentials in CI and costs money; moto (pinned 5.2.3) answers boto3's calls
+  in memory, including conditional writes. Real S3 gets checked once, when the
+  sandbox bucket exists.
+- *Mount S3 as a folder (s3fs, Mountpoint):* no code changes, but no
+  conditional writes, and not available on Lambda.
+
+**Why:** the next steps (Lambda, Cognito) need files in S3, and the existing
+safety rules (stay inside the workspace, never overwrite unseen changes) must
+hold there too. One interface keeps the API code and its 27 tests unchanged.
+**Trade-offs:** S3 has no rename, so rename is copy then delete (see Known
+limitations). Each S3 save makes two requests (check, then write); reads make
+one. At one user's scale that's a fraction of a cent a month.

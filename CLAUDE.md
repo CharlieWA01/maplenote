@@ -35,6 +35,12 @@ appear under Charlie's account).
 
 - `app.py`: Flask server. Serves `static/` and a small JSON API over one
   workspace folder. The API is documented in its module docstring.
+- `storage.py`: where files live. `app.py` never touches files directly; it
+  calls one storage backend: `LocalStorage` (a folder, the default) or
+  `S3Storage` (an S3 bucket, `MAPLENOTE_STORAGE=s3`). Both raise the same
+  exceptions, which `app.py` turns into HTTP statuses. S3 saves use
+  conditional writes (If-Match / If-None-Match) for the 409 conflict rule;
+  its tests run against a fake S3 (moto), never real AWS.
 - `config.py`: every setting, each overridable by a `MAPLENOTE_*` env var.
 - `static/`: plain HTML/CSS/JS, no build step. `app.js` holds tabs, sidebar
   and file actions. A tab's `kind` says where its file lives: `workspace`

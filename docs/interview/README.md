@@ -54,6 +54,12 @@ the architecture and why it's that way. That's what these stories are for.
 - **Result:** A tested two-tab scenario that would have lost data now asks
   the user instead. It's the same optimistic-concurrency idea used by
   HTTP ETags and S3 conditional writes, which suits the planned S3 storage.
+- **Follow-up (storage layer):** when files moved behind a storage interface
+  with an S3 backend, the same rule had to hold on Lambda, where two saves can
+  run on different machines and an in-memory lock is useless. S3's
+  conditional writes (`If-Match` on the ETag) make S3 itself refuse the losing
+  write. A test simulates the race against a fake S3 (moto), and removing the
+  condition makes it fail.
 
 ## Defence in depth for a Markdown preview
 **Tags:** Security
