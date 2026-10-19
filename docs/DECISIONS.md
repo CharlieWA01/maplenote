@@ -1,12 +1,87 @@
-# Design decisions
+# Decisions
 
-Why Maplenote is built the way it is. Add an entry whenever we choose between
-real alternatives, so nobody (human or Claude) re-argues a settled question
-or undoes something without knowing why it was there. Newest first.
+Why Maplenote is built the way it is. Newest at the bottom. Each entry: what
+was decided, what else was considered, the trade-offs, and why. A decision
+that changes later gets marked superseded, not deleted, so nobody (human or
+Claude) re-argues a settled question or undoes something without knowing why
+it was there. Format: see `docs/DOCS-STANDARD.md`.
 
----
+## 2026-10-17: Python + Flask local web app
+**Decision:** A Python (Flask) server plus a plain HTML/CSS/JS page, used in
+the browser at `localhost:8000`.
+**Why:** Charlie mostly uses a Chromebook and wants it OS-agnostic. Python
+runs everywhere (Chromebook via its Linux environment), the browser is the UI,
+and it moves to the cloud naturally. Flask is small and readable; one
+dependency.
+**Rejected:** Desktop app (platform-specific), terminal editor, FastAPI (more
+concepts than needed), Python's built-in `http.server` (more boilerplate).
+**Also:** dark theme by default; no build step for the frontend.
 
-### Local files open through the browser, not the server (2026-10-18)
+## 2026-10-17: Safety foundations
+- **One workspace folder.** Every path is resolved and must stay inside it;
+  `../` tricks and symlinks pointing outside are refused.
+- **Host header allowlist** (`ALLOWED_HOSTS`) blocks DNS-rebinding attacks,
+  where a malicious website gets your browser to talk to a local server.
+- **Atomic saves:** write a temp file, then swap it in, so a crash mid-save
+  never leaves a half-written file.
+- **Binds to 127.0.0.1 by default:** reachable only from the same machine.
+
+## 2026-10-17: Files over 10 MB refused
+**Decision:** The server refuses files over `MAX_FILE_BYTES` (10 MB).
+**Why:** Browsers and editors bog down on very large files. Supporting them
+needs a different design (load in chunks, render only the visible part). A
+read-only log viewer is parked as the better answer for big logs.
+
+## 2026-10-17: Markdown preview as a toggle, `.md` only
+**Decision:** An Edit/Preview toggle that appears only on `.md` tabs, not a
+side-by-side split.
+
+## 2026-10-17: CodeMirror for the editing area
+**Decision:** Replace the plain `<textarea>` with CodeMirror in step 4,
+bundled into `static/vendor/` (no CDN). No syntax highlighting in v1.
+**Why:** Undo/redo, find & replace, and line numbers are fiddly and fragile on
+a textarea (e.g. programmatic replace breaks Ctrl+Z). CodeMirror is mature
+and modular, so syntax highlighting is an easy later add-on.
+**Rejected:** Monaco (VS Code's editor): heavier than needed.
+*Version question settled 2026-10-18: CodeMirror 6 (see "CodeMirror 6, bundled once and committed" below).*
+
+## 2026-10-17: Autosave, no "unsaved changes" prompts
+*Partly superseded (2026-10-18): prompts now appear when autosave is off; see "Unsaved-changes warnings when autosave is off" below.*
+**Decision:** Step 3 adds autosave about 1 s after typing stops, plus crash
+recovery from drafts kept in the browser. No "are you sure?" prompts for
+unsaved work. Deleting a file still asks for confirmation (it can't be undone).
+
+## 2026-10-17: Open tabs remembered per browser
+**Decision:** The list of open tabs is stored in the browser's localStorage.
+**Why:** Simple, and a per-device tab layout makes sense. File contents are
+always loaded fresh from the server.
+
+## 2026-10-17: Scratch pad protected by the server
+**Decision:** `scratch.txt` is always open in the first tab and can't be
+closed, renamed or deleted. The server refuses rename/delete too, not just
+the UI.
+**Why:** Rules enforced only in the browser can be bypassed. General
+principle: enforce rules on the server.
+
+## 2026-10-17: The repo is the source of truth
+**Decision:** Plans and decisions live in `CLAUDE.md`, `docs/ROADMAP.md` and
+this file, not in chat history.
+**Why:** Claude doesn't remember past sessions; the repo does.
+
+## 2026-10-17: Work through branches and pull requests
+**Decision:** Claude works on a branch and opens a PR; Charlie reviews and
+merges. Each PR updates the roadmap and this log as needed.
+**Why:** `main` only changes when Charlie approves, and the PR history records
+what changed and why. Steps 1 and 2 predate this and were committed to `main`.
+
+## 2026-10-17: Designed with cloud hosting in mind
+**Decision:** Keep the app ready to containerize and host (e.g. AWS) later,
+without building for it yet.
+**Consequences:** Settings come from env vars. Step 3 includes edit-conflict
+detection (two devices autosaving the same file). Disk access will move behind
+a storage layer before hosting. **No public deployment without a login.**
+
+## 2026-10-17: Local files open through the browser, not the server (PR #2)
 **Decision:** An "Open…" button uses Chrome's File System Access API to open
 `.txt`/`.md` files anywhere on the user's device and save back to them.
 **Why:** On a Chromebook the Linux server can't see Downloads or Google Drive
@@ -18,7 +93,7 @@ device, while the browser picker still opens the user's own files.
 back to downloading a copy). Requires a secure origin: `localhost` works,
 `penguin.linux.test` doesn't. After a refresh, Chrome asks once to re-allow
 access to each file.
-**How it's built (PR #2):** Tabs have a `kind`: `workspace` (server API),
+**How it's built:** Tabs have a `kind`: `workspace` (server API),
 `device` (browser file handle) or `copy` (fallback; Save downloads a copy).
 Device file handles are kept in IndexedDB so those tabs survive a refresh;
 if Chrome has forgotten the permission, the tab shows an "Allow access"
@@ -27,37 +102,7 @@ Device files get the same rules as the server: 10 MB limit (the server
 reports it in `/api/files`) and must be valid UTF-8. Copy tabs aren't
 restored after a refresh.
 
-### Designed with cloud hosting in mind (2026-10-18)
-**Decision:** Keep the app ready to containerize and host (e.g. AWS) later,
-without building for it yet.
-**Consequences:** Settings come from env vars. Step 3 includes edit-conflict
-detection (two devices autosaving the same file). Disk access will move behind
-a storage layer before hosting. **No public deployment without a login.**
-
-### Work through branches and pull requests (2026-10-18)
-**Decision:** Claude works on a branch and opens a PR; Charlie reviews and
-merges. Each PR updates the roadmap and this log as needed.
-**Why:** `main` only changes when Charlie approves, and the PR history records
-what changed and why. Steps 1 and 2 predate this and were committed to `main`.
-
-### The repo is the source of truth (2026-10-18)
-**Decision:** Plans and decisions live in `CLAUDE.md`, `docs/ROADMAP.md` and
-this file, not in chat history.
-**Why:** Claude doesn't remember past sessions; the repo does.
-
-### Scratch pad protected by the server (2026-10-17)
-**Decision:** `scratch.txt` is always open in the first tab and can't be
-closed, renamed or deleted. The server refuses rename/delete too, not just
-the UI.
-**Why:** Rules enforced only in the browser can be bypassed. General
-principle: enforce rules on the server.
-
-### Open tabs remembered per browser (2026-10-17)
-**Decision:** The list of open tabs is stored in the browser's localStorage.
-**Why:** Simple, and a per-device tab layout makes sense. File contents are
-always loaded fresh from the server.
-
-### Autosave, crash recovery and conflict detection (2026-10-18, PR #3)
+## 2026-10-18: Autosave, crash recovery and conflict detection (PR #3)
 **Decision:**
 - **Autosave** about 1 s after typing stops, **on by default** with a toolbar
   toggle (remembered per browser). The Save button stays either way.
@@ -82,7 +127,7 @@ is on; see the next entry for when it's off.
 **Rejected:** Per-file autosave settings (parked); automatic merging of
 conflicting edits (complex, and a wrong merge is worse than asking).
 
-### Unsaved-changes warnings when autosave is off (2026-10-18, PR #3 review)
+## 2026-10-18: Unsaved-changes warnings when autosave is off (PR #3 review)
 **Decision:** When a tab's edits won't be autosaved (autosave off, or a copy
 tab), closing it asks **"Save changes to X before closing?"** with
 **Save / Don't save / Cancel** (Maplenote's own dialog; the browser's
@@ -94,15 +139,28 @@ saves first.
 normal editor practice. The original "no alerts" choice assumed autosave
 was always on; once it became optional, the "off" case needed the
 familiar safety net.
-**Supersedes:** part of the entry below.
+**Supersedes:** part of the 2026-10-17 entry "Autosave, no \"unsaved changes\" prompts".
 
-### Autosave, no "unsaved changes" prompts (2026-10-17)
-*Partly superseded (2026-10-18): prompts now appear when autosave is off; see above.*
-**Decision:** Step 3 adds autosave about 1 s after typing stops, plus crash
-recovery from drafts kept in the browser. No "are you sure?" prompts for
-unsaved work. Deleting a file still asks for confirmation (it can't be undone).
+## 2026-10-18: CodeMirror 6, bundled once and committed (PR #4)
+**Decision:** Use CodeMirror **6**. The pieces we use are bundled with esbuild
+into one file, `static/vendor/codemirror.js` (a global `CM`), which is
+committed. The recipe (exact pinned versions, entry file, build command)
+lives in `vendor-src/`; license texts in `static/vendor/THIRD-PARTY-LICENSES.txt`.
+**Why 6 over 5:** 5 is in maintenance mode; 6 is current, better on touch
+screens (Chromebook), and is what Obsidian uses. Its one downside, needing a
+bundling step, only applies when *upgrading* the library: running Maplenote
+still needs just Python, and works offline.
+**How it's used:** one `EditorView` on screen; each tab owns an
+`EditorState` (text, cursor, undo history, find bar), swapped in on tab
+switch, so undo survives switching tabs. A tab is "dirty" when its document
+differs from `savedDoc`, so undoing back to the saved text makes it clean.
+Included: line numbers, history, find & replace (Ctrl+F, plus a Find
+button), highlight matches, word wrap (toggle in the status bar, **on by
+default**, remembered per browser), Tab inserts a tab. Status bar shows
+line/column, selection size, word and line counts.
+**Checked:** an 8 MB, 120,000-line log opens in ~0.2 s and stays responsive.
 
-### Markdown preview with markdown-it, plus a Content-Security-Policy (2026-10-18, PR #5)
+## 2026-10-18: Markdown preview with markdown-it, plus a Content-Security-Policy (PR #5)
 **Decision:** `.md` / `.markdown` tabs get an **Edit | Preview** switch at
 the right of the tab row (Obsidian's spot). Preview is rendered with
 **markdown-it**, vendored like CodeMirror (`static/vendor/markdown-it.js`,
@@ -123,60 +181,29 @@ side-by-side split view (decided earlier: a toggle).
 **Pinned versions:** the newest markdown-it release was two days old, so we
 took the newest one that had been out for a few weeks.
 
-### CodeMirror 6, bundled once and committed (2026-10-18, PR #4)
-**Decision:** Use CodeMirror **6**. The pieces we use are bundled with esbuild
-into one file, `static/vendor/codemirror.js` (a global `CM`), which is
-committed. The recipe (exact pinned versions, entry file, build command)
-lives in `vendor-src/`; license texts in `static/vendor/THIRD-PARTY-LICENSES.txt`.
-**Why 6 over 5:** 5 is in maintenance mode; 6 is current, better on touch
-screens (Chromebook), and is what Obsidian uses. Its one downside, needing a
-bundling step, only applies when *upgrading* the library: running Maplenote
-still needs just Python, and works offline.
-**How it's used:** one `EditorView` on screen; each tab owns an
-`EditorState` (text, cursor, undo history, find bar), swapped in on tab
-switch, so undo survives switching tabs. A tab is "dirty" when its document
-differs from `savedDoc`, so undoing back to the saved text makes it clean.
-Included: line numbers, history, find & replace (Ctrl+F, plus a Find
-button), highlight matches, word wrap (toggle in the status bar, **on by
-default**, remembered per browser), Tab inserts a tab. Status bar shows
-line/column, selection size, word and line counts.
-**Checked:** an 8 MB, 120,000-line log opens in ~0.2 s and stays responsive.
-
-### CodeMirror for the editing area (2026-10-17)
-**Decision:** Replace the plain `<textarea>` with CodeMirror in step 4,
-bundled into `static/vendor/` (no CDN). No syntax highlighting in v1.
-**Why:** Undo/redo, find & replace, and line numbers are fiddly and fragile on
-a textarea (e.g. programmatic replace breaks Ctrl+Z). CodeMirror is mature
-and modular, so syntax highlighting is an easy later add-on.
-**Rejected:** Monaco (VS Code's editor): heavier than needed.
-*Version question settled 2026-10-18: CodeMirror 6 (see above).*
-
-### Markdown preview as a toggle, `.md` only (2026-10-17)
-**Decision:** An Edit/Preview toggle that appears only on `.md` tabs, not a
-side-by-side split.
-
-### Files over 10 MB refused (2026-10-17)
-**Decision:** The server refuses files over `MAX_FILE_BYTES` (10 MB).
-**Why:** Browsers and editors bog down on very large files. Supporting them
-needs a different design (load in chunks, render only the visible part). A
-read-only log viewer is parked as the better answer for big logs.
-
-### Safety foundations (2026-10-17)
-- **One workspace folder.** Every path is resolved and must stay inside it;
-  `../` tricks and symlinks pointing outside are refused.
-- **Host header allowlist** (`ALLOWED_HOSTS`) blocks DNS-rebinding attacks,
-  where a malicious website gets your browser to talk to a local server.
-- **Atomic saves:** write a temp file, then swap it in, so a crash mid-save
-  never leaves a half-written file.
-- **Binds to 127.0.0.1 by default:** reachable only from the same machine.
-
-### Python + Flask local web app (2026-10-17)
-**Decision:** A Python (Flask) server plus a plain HTML/CSS/JS page, used in
-the browser at `localhost:8000`.
-**Why:** Charlie mostly uses a Chromebook and wants it OS-agnostic. Python
-runs everywhere (Chromebook via its Linux environment), the browser is the UI,
-and it moves to the cloud naturally. Flask is small and readable; one
-dependency.
-**Rejected:** Desktop app (platform-specific), terminal editor, FastAPI (more
-concepts than needed), Python's built-in `http.server` (more boilerplate).
-**Also:** dark theme by default; no build step for the frontend.
+## 2026-10-19: A shared documentation standard, mostly automated
+**Decision:** Adopt the practice started in the `cloud-homelab` repo as a
+written standard (`docs/DOCS-STANDARD.md`, identical in every project repo):
+portfolio summary, roadmap, decision log, dated journal entries with an
+"In my own words" section for Charlie, STAR interview stories, runbooks, and
+an automatic history of merged PRs. Backfilled Maplenote's journal, stories
+and history from the first two days while the details were fresh, and
+reformatted this decision log to the shared format (oldest first).
+**Automation:** `CLAUDE.md` makes documenting part of every task; a PR
+template carries the checklist; the `docs-check` workflow fails PRs that
+change code without touching `docs/` (label `no-docs-needed` for
+exceptions); the `docs-history` workflow appends each merged PR to
+`docs/HISTORY.md`.
+**Alternatives:** a separate docs repo or a document tool (drifts from the
+code, not versioned with it); generating everything from commit messages
+(captures *what* but not *why*); an AI summary after the fact (loses detail;
+the point is to write it while it's fresh); a weekly scheduled Claude review
+for gaps (Charlie: not needed; the workflows and `CLAUDE.md` cover it).
+**Why:** Charlie wants a record to use for presentations, a resume and
+interviews, and Claude has no memory between sessions. Writing docs in the
+same PR as the change keeps them true; the workflows catch what the habit
+misses. "In my own words" stays manual on purpose: it's what makes the
+record Charlie's own.
+**Trade-offs:** the history workflow commits to `main` after each merge, so
+`git pull` after merging brings down one extra commit. The standard is
+copied between repos, so it has to be kept in sync by hand for now.

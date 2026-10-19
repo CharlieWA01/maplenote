@@ -26,8 +26,18 @@ files in one folder on your computer, and you edit them in a browser tab.
   preview uses [markdown-it](https://github.com/markdown-it/markdown-it), both
   bundled into `static/vendor/` (how they're built: [`vendor-src/`](vendor-src/README.md)).
 
-Plans and design decisions live in [`docs/ROADMAP.md`](docs/ROADMAP.md) and
-[`docs/DECISIONS.md`](docs/DECISIONS.md).
+## Docs
+
+| Path | What it holds |
+|---|---|
+| [`docs/PORTFOLIO.md`](docs/PORTFOLIO.md) | One-page summary: what it is, how it's built, resume bullets |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | What's done, what's next, parking lot, known limitations |
+| [`docs/DECISIONS.md`](docs/DECISIONS.md) | Every design decision, the alternatives, and why |
+| [`docs/journal/`](docs/journal/) | Dated entries: what was done in each work session |
+| [`docs/interview/`](docs/interview/README.md) | STAR-style stories from the build |
+| [`docs/runbooks/`](docs/runbooks/) | Repeatable procedures (running, updating, testing a PR) |
+| [`docs/HISTORY.md`](docs/HISTORY.md) | Every merged change, recorded automatically |
+| [`docs/DOCS-STANDARD.md`](docs/DOCS-STANDARD.md) | How and why all of the above is kept |
 
 ## First-time setup
 

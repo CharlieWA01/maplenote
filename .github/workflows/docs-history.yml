@@ -1,0 +1,52 @@
+# After a pull request is merged into main, appends one row to
+# docs/HISTORY.md: the merge date, a link to the PR, and its title.
+# See docs/DOCS-STANDARD.md.
+name: docs-history
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+# Two merges close together are recorded one after the other, not at once.
+concurrency:
+  group: docs-history
+
+jobs:
+  record:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Append this PR to docs/HISTORY.md
+        env:
+          NUMBER: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          URL: ${{ github.event.pull_request.html_url }}
+          MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        run: |
+          file=docs/HISTORY.md
+          if grep -q "\[#$NUMBER\](" "$file"; then
+            echo "PR #$NUMBER is already recorded."
+            exit 0
+          fi
+          # The date in Charlie's time zone, and a title that can't break the table.
+          date=$(TZ=America/Chicago date -d "$MERGED_AT" +%Y-%m-%d)
+          title=$(printf '%s' "$TITLE" | sed 's/|/\\|/g')
+          printf '| %s | [#%s](%s) | %s |\n' "$date" "$NUMBER" "$URL" "$title" >> "$file"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          git commit -m "docs: record #$NUMBER in history"
+          for attempt in 1 2 3; do
+            git push && exit 0
+            git pull --rebase origin main
+          done
+          exit 1

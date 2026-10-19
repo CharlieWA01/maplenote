@@ -8,6 +8,29 @@ Explain what you're doing and why, in plain language.
 Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
 `docs/DECISIONS.md` (what's been decided and why) before proposing work.
 
+## Documenting is part of every task
+
+The docs are for Charlie's future self, presentations, resume and job
+interviews, and they're Claude's memory between sessions. Follow
+`docs/DOCS-STANDARD.md` (shared with Charlie's other project repos). A task
+isn't done until its docs are updated **in the same PR**:
+
+1. **Journal:** add or extend `docs/journal/YYYY-MM-DD-<topic>.md` using the
+   template in `docs/journal/README.md`. Leave "In my own words" for Charlie;
+   never fill it in.
+2. **Decisions:** real choices go in `docs/DECISIONS.md` (newest at the
+   bottom; correct old entries by marking them superseded).
+3. **Roadmap:** tick off finished items; park side ideas; note limitations.
+4. **Interview stories:** add or extend one in `docs/interview/README.md`
+   when the work makes a good story.
+5. **Runbooks:** repeatable procedures go in `docs/runbooks/`.
+6. **Portfolio:** update `docs/PORTFOLIO.md` when the headline facts change.
+
+Never edit `docs/HISTORY.md` by hand; a workflow appends to it after each
+merge. The `docs-check` workflow fails PRs that change code without touching
+`docs/`. End every GitHub comment Claude posts with `— Claude` (comments
+appear under Charlie's account).
+
 ## Architecture
 
 - `app.py`: Flask server. Serves `static/` and a small JSON API over one
@@ -45,9 +68,8 @@ Start of a session: read `docs/ROADMAP.md` (what's done and what's next) and
 ## How we work
 
 - Work on a branch and open a pull request; Charlie reviews and merges.
-- Each PR updates the docs it affects: mark roadmap items done, record
-  design decisions in `docs/DECISIONS.md`, park side ideas in the roadmap's
-  parking lot. Code and docs change together.
+- Each PR updates its docs (see "Documenting is part of every task" above)
+  and fills in the PR template's checklist.
 - Test before pushing: run the server against a scratch workspace and drive
   the page in headless Chromium (Playwright is installed in cloud sessions).
   Type into `.cm-content`; read the text with
