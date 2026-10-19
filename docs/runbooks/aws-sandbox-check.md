@@ -23,7 +23,10 @@ one-hour credentials, no keys stored anywhere) and runs
 
 A green run means: GitHub signed in to AWS, the file API works on real S3,
 real S3 refuses a save that lost a race, files are encrypted at rest, and
-the role is refused outside its `ci-check/` folder.
+the role can't write or delete outside its `ci-check/` folder. The "can't
+read outside" test is skipped until the bucket holds a file outside
+`ci-check/` to try (S3 says "no such file" for a missing one, even to a
+caller that may not read it).
 
 ## When it fails
 

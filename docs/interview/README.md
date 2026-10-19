@@ -145,3 +145,24 @@ the architecture and why it's that way. That's what these stories are for.
   into 32 errors. Traced it to a specific Chromium build, and fixed it by
   making CI use the exact browser build used in development: reproducible
   environments over "works on my machine".
+
+## A failing test that was wrong, not the code
+**Tags:** Security, Process
+
+- **Situation:** Maplenote's S3 storage had only been tested against a fake
+  S3. Once a real sandbox bucket existed, a GitHub workflow signed in to AWS
+  (OIDC, no stored keys) with a role limited to one scratch folder, and ran
+  the storage code for real.
+- **Task:** Prove the code works on real S3, and prove the role can't touch
+  anything outside its folder.
+- **Action:** Wrote tests for the whole file API, a save that loses a race,
+  encryption at rest, and access outside the folder; confirmed the AWS-only
+  ones fail against the fake S3, so they test something it can't.
+- **Result:** On the first real run, three passed and the access test
+  failed: reading a file outside the folder said "no such file" instead of
+  "access denied". Before treating it as a security hole, checked why: S3
+  says "no such file" for a *missing* file to anyone allowed to list the
+  bucket, since a listing reveals that anyway. The role was fine; the test
+  asked the wrong question. Rewrote it to check writes and deletes (always
+  testable) and reads of a file that really exists.
+- **Lesson:** a red test is a claim to investigate, in both directions.
