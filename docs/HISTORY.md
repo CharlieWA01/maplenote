@@ -13,3 +13,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-18 | [#3](https://github.com/CharlieWA01/maplenote/pull/3) | Add autosave, crash recovery and conflict detection |
 | 2026-10-18 | [#4](https://github.com/CharlieWA01/maplenote/pull/4) | Switch the editing area to CodeMirror 6 |
 | 2026-10-18 | [#5](https://github.com/CharlieWA01/maplenote/pull/5) | Add a Markdown preview for .md files |
+| 2026-10-19 | [#6](https://github.com/CharlieWA01/maplenote/pull/6) | Adopt a shared documentation standard, backfill the record, automate it |
