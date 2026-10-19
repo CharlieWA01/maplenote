@@ -1,0 +1,5 @@
+# Only needed to run the tests (see README.md, "Running the tests").
+-r requirements.txt
+pytest==9.1.1
+pytest-playwright==0.9.0
+playwright==1.56.0

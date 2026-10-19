@@ -20,8 +20,8 @@ Target: a Docker image that runs on AWS Lambda (see DECISIONS.md, 2026-10-19).
 
 | Step | Status |
 |------|--------|
-| Automated test suite in the repo (API tests + browser tests), run on every PR by GitHub Actions | ⏭️ |
-| Storage layer: disk access behind `storage.py`, with a local-folder backend and an S3 backend (conflict detection via S3 conditional writes) | ⬜ |
+| Automated test suite in the repo (API tests + browser tests), run on every PR by GitHub Actions | ✅ |
+| Storage layer: disk access behind `storage.py`, with a local-folder backend and an S3 backend (conflict detection via S3 conditional writes) | ⏭️ |
 | `Dockerfile`: Flask + gunicorn + the Lambda Web Adapter; the same image runs locally, on Lambda, or on Proxmox later | ⬜ |
 | File-size limit configurable per environment (5 MB in the cloud, for Lambda's ~6 MB payload limit) | ⬜ |
 
@@ -56,6 +56,10 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Live sync between devices (push changes instead of detecting conflicts on
   save); needs a long-running server or API Gateway WebSockets
 - Run the same Docker image on the Proxmox homelab
+- Retry a newer Playwright (pinned at 1.56): check whether the crash when
+  restoring a stored test file handle after a reload is gone in newer Chromium
+- Update the docs workflows (`docs-check`, `docs-history`) in both repos from
+  `actions/checkout@v4` to v7 (v4 runs on a deprecated Node.js; still works)
 - Keep `docs/DOCS-STANDARD.md` in one shared place (e.g. a template repo)
   instead of copying it between repos, once there are more than two
 

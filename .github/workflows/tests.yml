@@ -1,0 +1,78 @@
+# Runs the whole test suite (API tests and browser tests) on every pull
+# request and every push to main. See README.md, "Running the tests".
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"   # same as Charlie's Chromebook
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install Python packages
+        run: pip install -r requirements-dev.txt
+
+      - name: Install the browser the tests drive
+        run: python -m playwright install --with-deps chromium
+
+      # "--browser-channel chromium" runs the full Chromium without a window, like
+      # real Chrome. Playwright's default "headless shell" is a stripped-down
+      # build that crashed on reopening files from the device after a reload.
+      - name: Run the tests
+        run: |
+          set -o pipefail
+          python -m pytest --browser-channel chromium --tracing retain-on-failure 2>&1 | tee pytest-output.txt
+
+      # Show failures as annotations on the PR, readable without opening the
+      # full log: the summary, the complete report of the first failure (GitHub
+      # shows at most 10 annotations per step), then the failing test names.
+      - name: Report failing tests on the PR
+        if: failure()
+        shell: python
+        run: |
+          import re
+          lines = open("pytest-output.txt", encoding="utf-8", errors="replace").read().splitlines()
+          lines = [l for l in lines if not l.startswith("INFO ")]
+
+          def annotate(title, text):
+              text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title={title}::{text}")
+
+          summary = [l for l in lines if re.match(r"^=*\s*\d+ (passed|failed|error)", l)]
+          annotate("Test summary", summary[-1] if summary else "pytest did not finish")
+          # A real test failure is the root cause; setup "errors" are often knock-on
+          # effects of it, and pytest prints them first. So prefer the FAILURES section.
+          sections = [i for i, l in enumerate(lines) if re.match(r"=+ (FAILURES|ERRORS) =+$", l)]
+          failures = [i for i in sections if "FAILURES" in lines[i]] or sections
+          start = failures[0] if failures else 0
+          headers = [i for i, l in enumerate(lines) if i > start and re.match(r"_{3,} .* _{3,}$", l)]
+          if headers:
+              first = headers[0]
+              stop = headers[1] if len(headers) > 1 else first + 150
+              annotate("First failure", "\n".join(lines[first:stop][:150]))
+          failed = [l for l in lines if l.startswith("FAILED ")] + [l for l in lines if l.startswith("ERROR ")]
+          for line in failed[:7]:
+              annotate("Test failed", line)
+
+      # If a browser test fails, keep a step-by-step recording of it.
+      # Open it with: python -m playwright show-trace <file>.zip
+      - name: Keep traces of failed browser tests
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
