@@ -32,9 +32,9 @@ Needs `cloud-homelab` Phase 2 first: Terraform, the S3 backend, GitHub OIDC.
 | Step | Status |
 |------|--------|
 | Sandbox S3 bucket for files (Terraform in `cloud-homelab`) and an `aws-sandbox-check` workflow that signs in via OIDC and runs the storage code against it | ✅ |
-| Infrastructure in Terraform (`cloud-homelab`): ECR repository, Lambda, Lambda function URL (decided 2026-10-19) | 🚧 written; waiting on Charlie's apply |
+| Infrastructure in Terraform (`cloud-homelab`): ECR repository, Lambda, Lambda function URL (decided 2026-10-19) | ✅ applied 2026-10-19 |
 | A password in front of the hosted app (`auth.py`), so it's never online unprotected; Lambda refuses to start without one | ✅ |
-| Deploy from GitHub Actions via OIDC (no stored AWS keys): `deploy-sandbox` builds, pushes, updates the function and checks it asks for the password | 🚧 first run after the apply |
+| Deploy from GitHub Actions via OIDC (no stored AWS keys): `deploy-sandbox` builds, pushes, updates the function and checks it asks for the password | ✅ live 2026-10-19 |
 | Login in the app with Cognito, replacing the password | ⏭️ |
 
 ## Parking lot
