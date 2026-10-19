@@ -13,6 +13,12 @@ python app.py
 Open **http://localhost:8000** (not `penguin.linux.test`, where saving
 device files doesn't work). Stop the server with `Ctrl+C`.
 
+## Use the hosted copy instead
+
+Nothing to start: open the AWS address in Chrome and sign in. It's
+updated automatically after each merge. Details, including where to find
+the address: `docs/runbooks/deploy-sandbox.md`.
+
 ## Get the latest version after a merge
 
 ```bash

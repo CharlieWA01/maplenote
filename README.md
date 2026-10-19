@@ -1,20 +1,35 @@
 # maplenote
 
-A simple, locally hosted text editor. A small Python server reads and writes
-files in one folder on your computer, and you edit them in a browser tab.
+A simple text editor you use in a browser tab. A small Python server reads
+and writes your files; all the editing happens in the page. The same code
+runs two ways:
+
+- **On your own computer:** files live in one folder (`~/maplenote-files`),
+  no password, at http://localhost:8000.
+- **Hosted on AWS** (since 2026-10-19): the same app, packaged as a Docker
+  image, runs on AWS Lambda in the sandbox account, with notes in an S3
+  bucket and a password sign-in page in front. GitHub Actions deploys it
+  after every merge. The AWS side (Terraform) lives in the `cloud-homelab`
+  repo.
+
+The same Docker image can also run on any Linux machine with Docker, such
+as a future homelab server. Login with Amazon Cognito, replacing the single
+password, is next on the [roadmap](docs/ROADMAP.md).
 
 ## How it fits together
 
 ```
- Browser tab (localhost:8000)          Python server (app.py)          Your disk
-┌────────────────────────────┐       ┌────────────────────────┐      ┌────────────────────┐
-│ static/index.html          │ ←───→ │ GET    /api/files      │ ←──→ │ ~/maplenote-files/ │
-│ static/app.js  (logic)     │  JSON │ GET    /api/file?path= │      │   scratch.txt      │
-│ static/style.css (looks)   │       │ PUT    /api/file  save │      │   notes.md         │
-│                            │       │ POST   /api/file  new  │      │   ...              │
-│                            │       │ DELETE /api/file       │      │                    │
-│                            │       │ POST   /api/rename     │      │                    │
-└────────────────────────────┘       └────────────────────────┘      └────────────────────┘
+ Browser tab                          Python server (app.py)          Storage (storage.py)
+┌────────────────────────────┐       ┌────────────────────────┐      ┌───────────────────────┐
+│ static/index.html          │ ←───→ │ GET    /api/files      │ ←──→ │ on your computer:     │
+│ static/app.js  (logic)     │  JSON │ GET    /api/file?path= │      │   ~/maplenote-files/  │
+│ static/style.css (looks)   │       │ PUT    /api/file  save │      │                       │
+│                            │       │ POST   /api/file  new  │      │ on AWS:               │
+│                            │       │ DELETE /api/file       │      │   an S3 bucket        │
+│                            │       │ POST   /api/rename     │      │   (notes/ folder)     │
+└────────────────────────────┘       └────────────────────────┘      └───────────────────────┘
+   localhost:8000, or the            on AWS: runs inside Lambda,
+   AWS address (HTTPS)               behind the sign-in page (auth.py)
 ```
 
 - **`app.py`** is the server: it serves the page and moves text to and from storage.
@@ -25,8 +40,9 @@ files in one folder on your computer, and you edit them in a browser tab.
   same either way.
 - **`config.py`** holds the settings: storage, workspace folder, port, size limit,
   password.
-- **`auth.py`** is the password check for when Maplenote is online (on AWS);
-  locally there's no password.
+- **`auth.py`** is the password check for when Maplenote is online (on AWS):
+  a sign-in page (`/login`) that sets a cookie, and `/logout` to sign out.
+  Locally there's no password.
 - **`Dockerfile`** packages all of it as one Docker image, which runs on AWS
   Lambda or on any machine with Docker (see "Running it in Docker").
 - **`static/`** is the page itself: all the editing happens in the browser.
@@ -50,7 +66,7 @@ files in one folder on your computer, and you edit them in a browser tab.
 
 ## First-time setup
 
-Needs Python 3.9 or newer. On a Chromebook, run these in the Linux terminal.
+Needs Python 3.11 (the version the tests run on). On a Chromebook, run these in the Linux terminal.
 
 ```bash
 cd ~/maplenote
@@ -59,7 +75,7 @@ source .venv/bin/activate            # switch into it
 pip install -r requirements.txt      # install Flask
 ```
 
-## Running it
+## Running it on your computer
 
 ```bash
 cd ~/maplenote
@@ -128,6 +144,26 @@ never pass through the server.
   browsers, or the `penguin.linux.test` address, can still open files, but
   Save downloads a copy instead.
 
+## Using the hosted copy (AWS)
+
+Open the address in Chrome (it's in the summary of the latest
+**deploy-sandbox** run in the Actions tab, or `terraform output -raw
+maplenote_url` in `cloud-homelab`). Maplenote shows its sign-in page; enter
+the password and Chrome stays signed in for 30 days. To sign out, open
+`<address>/logout`.
+
+Differences from running it locally:
+
+- Notes live in the S3 bucket, not in `~/maplenote-files`. The two are
+  separate sets of files.
+- Files are limited to 5 MB (10 MB locally), because Lambda refuses larger
+  requests.
+- After a while idle, the first click takes a second or two while Lambda
+  starts the app (a "cold start").
+
+Deploying, changing the password, rolling back and reading the logs:
+[`docs/runbooks/deploy-sandbox.md`](docs/runbooks/deploy-sandbox.md).
+
 ## Running it in Docker
 
 The same image that runs on AWS runs on any Linux machine with Docker (a
@@ -145,7 +181,7 @@ quotes: the hash contains `$` signs). Hosting on AWS: see
 
 ## Running the tests
 
-104 automated tests check the server's API and storage and drive the app in a real
+About 125 automated tests check the server's API and storage and drive the app in a real
 browser. GitHub Actions runs them on every pull request. To run them yourself:
 
 ```bash
@@ -175,6 +211,8 @@ git pull
 ```
 
 If the server is running, stop it with `Ctrl+C` and start it again to pick up the changes.
+The hosted copy on AWS doesn't need this: merging a pull request that
+changes the app deploys it automatically.
 
 ## Troubleshooting
 

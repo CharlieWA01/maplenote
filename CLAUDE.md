@@ -1,7 +1,8 @@
 # Maplenote: briefing for Claude
 
-Maplenote is a small, locally hosted text editor that Charlie is building to
-use daily and to learn from. Charlie knows some Python, is new to git and
+Maplenote is a small, self-hosted text editor that Charlie is building to
+use daily and to learn from. It runs locally and, since 2026-10-19, on AWS
+Lambda in the sandbox account (see Architecture). Charlie knows some Python, is new to git and
 GitHub, and wants to understand the architecture without reading every line.
 Explain what you're doing and why, in plain language.
 

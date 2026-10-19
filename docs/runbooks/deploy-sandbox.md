@@ -27,13 +27,13 @@ By hand: Actions tab → **deploy-sandbox** → **Run workflow** (branch
    virtual environment active (`source .venv/bin/activate`):
 
    ```sh
-   python3 -c "from werkzeug.security import generate_password_hash as h; import getpass; print(h(getpass.getpass('Password: ')))"
+   python auth.py
    ```
 
-   Use something long (a few random words), and keep it in a password
-   manager. The line it prints, starting `scrypt:`, is the hash: it goes in
-   `cloud-homelab`'s `terraform.tfvars`. Once this PR is merged,
-   `python auth.py` does the same with a confirmation prompt.
+   It asks for the password twice. Use something long (a few random words,
+   at least 12 characters), and keep it in a password manager. The line it
+   prints, starting `scrypt:`, is the hash: it goes in `cloud-homelab`'s
+   `terraform.tfvars`.
 2. Follow the `cloud-homelab` runbook. In short: a first, targeted apply
    creates the image repository; merging this repo's PR runs the workflow,
    which pushes the first image and stops with a notice that the function
