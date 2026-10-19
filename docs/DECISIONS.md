@@ -197,7 +197,8 @@ exceptions); the `docs-history` workflow appends each merged PR to
 **Alternatives:** a separate docs repo or a document tool (drifts from the
 code, not versioned with it); generating everything from commit messages
 (captures *what* but not *why*); an AI summary after the fact (loses detail;
-the point is to write it while it's fresh).
+the point is to write it while it's fresh); a weekly scheduled Claude review
+for gaps (Charlie: not needed; the workflows and `CLAUDE.md` cover it).
 **Why:** Charlie wants a record to use for presentations, a resume and
 interviews, and Claude has no memory between sessions. Writing docs in the
 same PR as the change keeps them true; the workflows catch what the habit
