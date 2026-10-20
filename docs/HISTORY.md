@@ -28,3 +28,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-19 | [#18](https://github.com/CharlieWA01/maplenote/pull/18) | Plan the portfolio guest mode |
 | 2026-10-19 | [#19](https://github.com/CharlieWA01/maplenote/pull/19) | Guest mode: notes kept in the visitor's browser, no login |
 | 2026-10-19 | [#20](https://github.com/CharlieWA01/maplenote/pull/20) | Show the version, build and changelog in an About box |
+| 2026-10-19 | [#21](https://github.com/CharlieWA01/maplenote/pull/21) | Note the public-registry 429 that can fail image builds |
