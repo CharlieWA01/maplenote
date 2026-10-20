@@ -53,6 +53,9 @@ password, is next on the [roadmap](docs/ROADMAP.md).
   The editing area is [CodeMirror 6](https://codemirror.net/) and the Markdown
   preview uses [markdown-it](https://github.com/markdown-it/markdown-it), both
   bundled into `static/vendor/` (how they're built: [`vendor-src/`](vendor-src/README.md)).
+  The version number at the bottom right opens the About box: the version,
+  the build it's running and what changed in each version
+  ([`static/changelog.md`](static/changelog.md)).
 
 ## Docs
 

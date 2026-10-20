@@ -3,4 +3,6 @@ __pycache__/
 *.pyc
 vendor-src/node_modules/
 test-results/
+# Written into the Docker image at build time (see Dockerfile), never committed.
+static/build.json
 .pytest_cache/

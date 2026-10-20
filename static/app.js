@@ -31,6 +31,10 @@
 // Markdown (.md) tabs can switch between Edit and Preview. The preview is rendered
 // by markdown-it (the global `MD`) with raw HTML switched off, so a file can't
 // inject code into the page.
+//
+// About box: the version number at the bottom right opens it, showing the version,
+// the build the app is running, and the changelog. All three come from static
+// files, so it works the same in guest mode (no API call).
 
 const newButton = document.getElementById("new-button");
 const openButton = document.getElementById("open-button");
@@ -58,6 +62,11 @@ const reconnectButton = document.getElementById("reconnect-button");
 const unsavedDialog = document.getElementById("unsaved-dialog");
 const unsavedName = document.getElementById("unsaved-name");
 const guestBar = document.getElementById("guest-bar");
+const aboutButton = document.getElementById("about-button");
+const aboutDialog = document.getElementById("about-dialog");
+const aboutVersion = document.getElementById("about-version");
+const aboutBuild = document.getElementById("about-build");
+const changelogPane = document.getElementById("changelog");
 
 // The server sets this cookie with the page when you're signed in (app.py's
 // index()). It's only a hint: the API checks the real session itself.
@@ -366,6 +375,64 @@ previewPane.addEventListener("click", (event) => {
   if (/^(https?:|mailto:)/i.test(href)) window.open(href, "_blank", "noopener");
   else showStatus("Links to other files don't work in the preview yet.");
 });
+
+// --------------------------------------------------------------- about box
+
+// The version is written down in one place: the first "## 1.2.3 · date" heading of
+// static/changelog.md. The build record, static/build.json, is written into the
+// Docker image when it's built (see Dockerfile): the commit it came from and when.
+// Running straight from the source folder there's no build record.
+const CHANGELOG_URL = "/static/changelog.md";
+const BUILD_URL = "/static/build.json";
+let changelogText = null;
+// The changelog wraps its lines in the file, so unlike notes (above) a single
+// line break is just a space.
+const changelogMarkdown = new MD.MarkdownIt({ html: false });
+
+// "no-cache" asks the server whether the file changed, so a new version shows up
+// straight after a deploy instead of whenever the browser's copy expires.
+async function fetchStatic(url) {
+  const response = await fetch(url, { cache: "no-cache" });
+  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  return response;
+}
+
+async function showVersion() {
+  try {
+    changelogText = await (await fetchStatic(CHANGELOG_URL)).text();
+  } catch {
+    return; // offline: the button keeps saying "Maplenote"
+  }
+  const version = /^## (\d+\.\d+\.\d+)/m.exec(changelogText)?.[1];
+  if (version) {
+    aboutButton.textContent = `v${version}`;
+    aboutVersion.textContent = version;
+  }
+}
+
+async function describeBuild() {
+  let build = null;
+  try {
+    build = await (await fetchStatic(BUILD_URL)).json();
+  } catch {
+    // No build record: running from the source folder (or offline).
+  }
+  if (!build?.commit) return "Running from the source folder, not a built image.";
+  return `Built from commit ${build.commit.slice(0, 7)}${build.built ? ` on ${build.built}` : ""}.`;
+}
+
+async function openAbout() {
+  if (changelogText === null) await showVersion();
+  // Only the entries, from the first version heading on (not the file's own intro).
+  const start = changelogText?.search(/^## /m) ?? -1;
+  changelogPane.innerHTML = start >= 0
+    ? changelogMarkdown.render(changelogText.slice(start))
+    : '<p class="empty">The changelog couldn\'t be loaded.</p>';
+  aboutBuild.textContent = "";
+  aboutDialog.showModal();
+  changelogPane.scrollTop = 0;
+  aboutBuild.textContent = await describeBuild();
+}
 
 // ---------------------------------------------------- browser storage (IndexedDB)
 
@@ -1288,6 +1355,7 @@ previewModeButton.addEventListener("click", () => activeTab && setMode(activeTab
 
 wrapToggle.checked = wrapEnabled;
 wrapToggle.addEventListener("change", () => setWordWrap(wrapToggle.checked));
+aboutButton.addEventListener("click", openAbout);
 
 // Typing is handled by onEditorUpdate (in the editor section above).
 
@@ -1305,6 +1373,7 @@ window.addEventListener("beforeunload", (event) => {
 window.addEventListener("pagehide", () => tabs.filter(isDirty).forEach(storeDraft));
 
 async function start() {
+  showVersion(); // in the background; the editor doesn't wait for it
   let session = loadSession();
   if (guestMode) {
     guestBar.hidden = false;

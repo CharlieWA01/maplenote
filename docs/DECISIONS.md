@@ -519,3 +519,48 @@ which mode it's in. **Trade-offs:** the sandbox Lambda now serves the page
 to anyone with its address (cost: fractions of a cent; the 10-at-once
 limit still caps it). The browser repeats the server's rules, so a rule
 change means changing both (the tests check both).
+
+## 2026-10-20: A version number and changelog inside the app
+
+**Decision:** Maplenote has a version number and a changelog that anyone
+using the app can see, in an About box opened from the version at the
+right of the status bar.
+- **One file:** `static/changelog.md` holds the changelog, and its first
+  entry's heading (`## 0.11.0 · 2026-10-20`) is the version. The page reads
+  it from there; nothing else stores the number.
+- **Semantic versioning, kept simple:** a PR that adds or changes something
+  a user would notice bumps the middle number (0.10.0 → 0.11.0); a PR that
+  only fixes a bug bumps the last (0.11.0 → 0.11.1); docs-, test- and
+  CI-only PRs don't get a version. It stays 0.x until Version 1 of the
+  roadmap is finished (step 6, polish), which becomes 1.0.0. The entry is
+  written in the same PR, in plain words for a user, and dated the day it's
+  merged.
+- **The build, from the image:** the Dockerfile writes `static/build.json`
+  (commit and build time, passed by `deploy-sandbox`) into the image. The
+  About box shows it; running from the source folder there's none, and it
+  says so. The deploy checks the live URL serves its own commit.
+- **History seeded from the record:** 0.1.0 to 0.10.0 are the past changes a
+  user would notice, from HISTORY.md and the git log.
+
+**Alternatives:**
+- *The version in `config.py` or a `VERSION` file, plus a changelog:* two
+  places that can disagree.
+- *Version = the commit hash or the date only:* exact, but tells a visitor
+  nothing about how big a change was, and isn't how released software is
+  usually numbered.
+- *A version per PR, docs included:* numbers that change when nothing in the
+  app did.
+- *Show `docs/HISTORY.md` in the app:* it's written for the repo (PR links,
+  docs-only rows), not for someone using the app.
+- *An `/api/version` route, or the server writing the version into the
+  page:* guests can't call the API, and the page is meant to move to S3 +
+  CloudFront, where there's no server to write anything. Static files work
+  in both places.
+- *A git tag or GitHub release per version:* worth having later (parked);
+  not needed to show the version in the app.
+
+**Why:** Charlie wanted it visible in the app; a visitor gets a sense of a
+living project, and Charlie can tell at a glance which build is live (and
+CI proves each deploy swapped the code). **Trade-offs:** one more thing to
+write per PR (a test catches a malformed or out-of-order entry, but not a
+forgotten one). The commit hash is public to anyone who opens the page.

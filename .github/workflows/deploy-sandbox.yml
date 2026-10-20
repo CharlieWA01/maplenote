@@ -76,7 +76,11 @@ jobs:
           if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" > /dev/null 2>&1; then
             echo "This commit's image is already in ECR; not rebuilding."
           else
-            docker build --provenance=false --platform linux/amd64 -t "$IMAGE" .
+            # The commit and build time go into the image for the About box.
+            docker build --provenance=false --platform linux/amd64 \
+              --build-arg MAPLENOTE_COMMIT="$GITHUB_SHA" \
+              --build-arg MAPLENOTE_BUILT="$(date -u '+%Y-%m-%d %H:%M UTC')" \
+              -t "$IMAGE" .
             docker push "$IMAGE"
           fi
 
@@ -100,13 +104,18 @@ jobs:
           echo "updated=true" >> "$GITHUB_OUTPUT"
 
       # A check from outside, as a stranger would see it: the app must
-      # answer, and must ask for the password. Anything but a 401 fails the
-      # deploy (a 200 would mean the notes are open to anyone).
-      - name: Check the app answers and asks for its password
+      # answer, must ask for the password, and must be the new version.
+      # Anything but a 401 fails the deploy (a 200 would mean the notes are
+      # open to anyone). The build record must name this commit, proving
+      # the function really runs the image just pushed.
+      - name: Check the app answers, asks for its password and runs this commit
         if: steps.update.outputs.updated == 'true'
         run: |
           url=$(aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --query FunctionUrl --output text)
           status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 --retry 3 --retry-all-errors "${url}api/files")
           echo "Without a password, ${url}api/files answered $status"
           test "$status" = 401
+          build=$(curl -s --max-time 30 --retry 3 --retry-all-errors "${url}static/build.json")
+          echo "Build record: $build"
+          grep -q "\"commit\": \"$GITHUB_SHA\"" <<< "$build"
           echo "Maplenote is deployed: $url" >> "$GITHUB_STEP_SUMMARY"
