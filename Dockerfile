@@ -38,6 +38,14 @@ RUN pip install --no-cache-dir -r requirements-image.txt
 COPY app.py auth.py config.py storage.py ./
 COPY static ./static
 
+# A build record the About box shows (see static/app.js): the commit this
+# image was built from and when. The deploy workflow passes both; a plain
+# `docker build` leaves them empty, and the About box says it can't tell.
+# Kept after the code, so a new commit only redoes this small step.
+ARG MAPLENOTE_COMMIT=""
+ARG MAPLENOTE_BUILT=""
+RUN printf '{"commit": "%s", "built": "%s"}\n' "$MAPLENOTE_COMMIT" "$MAPLENOTE_BUILT" > static/build.json
+
 # Run as an ordinary user, not root. User 1000 is also the usual owner of
 # your own files on Linux (the Chromebook included), so a mounted folder is
 # writable without extra steps.

@@ -18,6 +18,10 @@ Nothing to do: merging a PR that changes the app (`app.py`, `auth.py`,
 starts `deploy-sandbox`. A green run ends with "Maplenote is deployed:
 <url>" in its summary.
 
+Which build is live: open the app and click the version at the bottom
+right. The About box says "Built from commit 1a2b3c4 on …"; that should be
+the merge commit on `main`. From a terminal: `curl <url>static/build.json`.
+
 By hand: Actions tab → **deploy-sandbox** → **Run workflow** (branch
 `main`). Running it again for the same commit reuses that commit's image.
 
@@ -84,6 +88,7 @@ aws logs tail /aws/lambda/cwa-maplenote --since 1h --profile cwa-sandbox-claude
 | Check the app answers | `answered 403` | The app refused the URL's host name: check `MAPLENOTE_ALLOWED_HOSTS` in the Terraform |
 | Check the app answers | `answered 502` or `000` | The app didn't start: check the logs (a missing password hash says "Refusing to run on AWS Lambda") |
 | Check the app answers | `answered 200` | **The app isn't asking for a password.** Treat as urgent: check `MAPLENOTE_PASSWORD_HASH` |
+| Check the app answers | fails just after `Build record: …` | The live app isn't this commit's image: the function update didn't take, or `build.json` is missing from the image (check the `Dockerfile`) |
 
 In the browser: a 413 "too large" on save means the file is over 5 MB,
 Lambda's limit (10 MB locally).

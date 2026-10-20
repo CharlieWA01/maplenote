@@ -57,6 +57,8 @@
         <label class="toggle" title="Wrap long lines to fit the window">
           <input id="wrap-toggle" type="checkbox"> Word wrap
         </label>
+        <!-- The version (from static/changelog.md); opens the About box. -->
+        <button id="about-button" class="about-button" type="button" title="About Maplenote: version and what's new">Maplenote</button>
       </footer>
     </main>
   </div>
@@ -69,6 +71,18 @@
         <button value="save" type="submit" autofocus>Save</button>
         <button value="discard" type="submit">Don't save</button>
         <button value="cancel" type="submit">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- About Maplenote: the version, the build it came from, and the changelog. -->
+  <dialog id="about-dialog" class="dialog about-dialog" aria-labelledby="about-title">
+    <form method="dialog">
+      <h2 id="about-title">Maplenote <span id="about-version"></span></h2>
+      <p id="about-build" class="about-build"></p>
+      <div id="changelog" class="preview changelog"></div>
+      <div class="dialog-buttons">
+        <button value="close" type="submit" autofocus>Close</button>
       </div>
     </form>
   </dialog>

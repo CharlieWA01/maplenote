@@ -13,6 +13,7 @@ Status: ✅ done · 🚧 in progress · ⏭️ next · ⬜ planned
 | 4 | Switch to CodeMirror: undo/redo that survives tab switches, find & replace, line numbers, word-wrap toggle, word/line count | ✅ |
 | 5 | Markdown preview: Edit/Preview toggle, `.md` files only | ✅ |
 | 6 | Polish: theme details, README | ⏭️ |
+| 6a | **Version number and changelog in the app:** an About box from the status bar shows the version, the build's commit and the changelog (`static/changelog.md`); finishing Version 1 makes it 1.0.0 | ✅ |
 
 ## Cloud-ready (local work, no AWS needed)
 
@@ -80,6 +81,10 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Roll back a deploy from the Actions tab (point the function at an older
   commit's image; today it's one `aws lambda update-function-code` command)
 - Guest mode: download all notes as a .zip, so a guest can keep them
+- Tag each version in git (`v0.11.0`) and make a GitHub release from its
+  changelog entry, by a workflow after merge
+- "What's new" hint: mark the version in the status bar when it changed
+  since your last visit
 - Guest mode: a "reset" button that restores the welcome note
 - Retry a newer Playwright (pinned at 1.56): check whether the crash when
   restoring a stored test file handle after a reload is gone in newer Chromium

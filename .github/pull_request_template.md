@@ -14,3 +14,4 @@
 - [ ] Interview story added or extended (if this makes a good one)
 - [ ] Runbook written (if this adds a repeatable procedure)
 - [ ] `docs/PORTFOLIO.md` updated (if the headline facts changed)
+- [ ] New version in `static/changelog.md` (if users see a change)

@@ -25,6 +25,9 @@ isn't done until its docs are updated **in the same PR**:
    when the work makes a good story.
 5. **Runbooks:** repeatable procedures go in `docs/runbooks/`.
 6. **Portfolio:** update `docs/PORTFOLIO.md` when the headline facts change.
+7. **Changelog:** when a PR changes what someone using the app sees, add a
+   new version at the top of `static/changelog.md` (rules: DECISIONS.md,
+   2026-10-20, "A version number and changelog inside the app").
 
 Never edit `docs/HISTORY.md` by hand; a workflow appends to it after each
 merge. The `docs-check` workflow fails PRs that change code without touching
@@ -62,6 +65,10 @@ appear under Charlie's account).
   (opened with "Open…", read and saved by the
   browser directly; the server never sees it) or `copy` (fallback).
   A guest's first visit opens `static/welcome.md`.
+  The version is the first heading of `static/changelog.md`; the About box
+  (the version in the status bar) shows it, the changelog, and the build
+  record `static/build.json` that the `Dockerfile` writes into the image
+  (commit and time, passed by `deploy-sandbox`).
   Every save goes through `saveTab()`; each tab tracks the file `version`
   it last saw, and saves carry it so changes made elsewhere aren't
   overwritten (the server returns 409 for workspace files).

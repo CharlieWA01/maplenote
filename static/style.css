@@ -252,6 +252,24 @@ button:disabled { opacity: 0.5; cursor: default; }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
 .dialog-buttons [value="save"] { border-color: var(--accent); }
 
+/* ---- About box: version, build and changelog ---- */
+
+.about-dialog { width: min(560px, calc(100vw - 32px)); max-width: none; }
+.about-dialog h2 { margin: 0 0 4px; font-size: 1.3rem; }
+.about-dialog .about-build { color: var(--muted); font-size: 13px; }
+/* The changelog reuses the Markdown preview's styles, in a scrolling box. */
+.about-dialog .changelog {
+  max-height: min(55vh, 480px);
+  padding: 0 12px 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 14px;
+}
+.about-dialog .changelog h2 { font-size: 1.05em; margin: 1em 0 0.3em; }
+.about-dialog .changelog p, .about-dialog .changelog ul { margin: 0.3em 0; }
+
 /* ---- "Allow access" panel for device files after a refresh ---- */
 
 .notice {
@@ -336,6 +354,14 @@ button:disabled { opacity: 0.5; cursor: default; }
   white-space: nowrap;
 }
 .statusbar .toggle { margin-left: auto; }
+/* The version number, at the far right: looks like the rest of the bar until hovered. */
+.statusbar .about-button {
+  padding: 0 4px;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  font-size: inherit;
+}
 
 /* ---- Sign-in page (only when hosted with a password) ---- */
 

@@ -242,7 +242,8 @@ def test_page_and_scripts_are_open_for_guest_mode(client, password):
     assert page.status_code == 200
     cookie = page.headers["Set-Cookie"]
     assert cookie.startswith(f"{auth.SIGNED_IN_COOKIE}=;") and "Max-Age=0" in cookie
-    for path in ("/static/app.js", "/static/style.css", "/static/welcome.md", "/static/vendor/codemirror.js"):
+    for path in ("/static/app.js", "/static/style.css", "/static/welcome.md", "/static/changelog.md",
+                 "/static/vendor/codemirror.js"):
         assert client.get(path).status_code == 200, path
     # Faking the hint gets the page, never the files.
     client.set_cookie(auth.SIGNED_IN_COOKIE, "1")
@@ -362,3 +363,25 @@ def test_file_size_limit_can_be_set_per_environment(workspace):
         cwd=ROOT, env=env, capture_output=True, text=True,
     )
     assert result.stdout.strip() == "5242880"
+
+
+# ------------------------------------------------- version and changelog
+
+CHANGELOG = Path(__file__).resolve().parent.parent / "static" / "changelog.md"
+
+
+def test_changelog_entries_are_well_formed_and_newest_first():
+    """The page reads its version from the first entry (static/app.js), so every
+    entry must be a "## 1.2.3 · YYYY-MM-DD" heading, each version higher than
+    the one below it and never dated earlier."""
+    import re
+    headings = [line for line in CHANGELOG.read_text(encoding="utf-8").splitlines() if line.startswith("## ")]
+    assert headings, "the changelog has no entries"
+    entries = []
+    for heading in headings:
+        match = re.fullmatch(r"## (\d+)\.(\d+)\.(\d+) · (\d{4}-\d{2}-\d{2})", heading)
+        assert match, f"badly formed changelog heading: {heading!r}"
+        entries.append((tuple(int(n) for n in match.groups()[:3]), match.group(4)))
+    for (newer, newer_date), (older, older_date) in zip(entries, entries[1:]):
+        assert newer > older, f"{newer} is listed above {older} but isn't higher"
+        assert newer_date >= older_date, f"{newer} is dated before {older}"
