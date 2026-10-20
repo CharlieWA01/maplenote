@@ -18,6 +18,11 @@
     <button id="delete-button" type="button" disabled>Delete</button>
     <button id="find-button" type="button" disabled title="Find and replace (Ctrl+F)">Find</button>
     <span id="status" class="status" role="status"></span>
+    <!-- Guest mode only (see app.js): where a guest's notes are kept, and the way in for Charlie. -->
+    <span id="guest-bar" class="guest-bar" hidden>
+      <span title="Your notes are saved in this browser only. Nothing is sent to a server.">Guest · notes stay in this browser</span>
+      <a href="/login">Sign in</a>
+    </span>
     <!-- A setting, not an action, so it sits apart from the buttons at the far right. -->
     <label class="toggle" title="Save automatically a moment after you stop typing">
       <input id="autosave-toggle" type="checkbox"> Autosave

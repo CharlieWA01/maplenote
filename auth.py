@@ -40,6 +40,9 @@ _last_accepted = None
 
 
 SESSION_COOKIE = "maplenote_session"
+# A second, readable cookie that only tells the page "start signed in, not in
+# guest mode". It grants nothing (see app.py's index()).
+SIGNED_IN_COOKIE = "maplenote_signed_in"
 SESSION_SECONDS = 30 * 24 * 60 * 60  # 30 days
 
 

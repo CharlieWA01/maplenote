@@ -46,7 +46,8 @@ DECISIONS.md, 2026-10-20.
 
 | Step | Status |
 |------|--------|
-| Guest mode: opens straight into the editor with no login; notes saved in the browser (IndexedDB) as a new tab kind; a short welcome note on how it's built; never calls the files API | ⏭️ |
+| Guest mode: opens straight into the editor with no login; notes saved in the browser (IndexedDB) as a new tab kind; a short welcome note on how it's built; never calls the files API | ✅ |
+| **Next:** the `cloud-homelab` side: SCPs on the Workloads OU, then the portfolio site (CloudFront + S3) in workloads-prod. No fixed date; it starts when Charlie is ready (`cloud-homelab` ROADMAP, Phase 4) | ⏭️ |
 | Version 1 step 6 (polish) done before the site goes public, since visitors only glance | ⬜ |
 | Frontend served as static files from S3 + CloudFront; only signed-in `/api` traffic reaches Lambda | ⬜ |
 | Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
@@ -78,6 +79,8 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   `Dockerfile`; already works on any Linux machine with Docker)
 - Roll back a deploy from the Actions tab (point the function at an older
   commit's image; today it's one `aws lambda update-function-code` command)
+- Guest mode: download all notes as a .zip, so a guest can keep them
+- Guest mode: a "reset" button that restores the welcome note
 - Retry a newer Playwright (pinned at 1.56): check whether the crash when
   restoring a stored test file handle after a reload is gone in newer Chromium
 - Update the docs workflows (`docs-check`, `docs-history`) in both repos from
@@ -88,6 +91,12 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   instead of copying it between repos, once there are more than two
 
 ## Known limitations
+
+- A guest's notes live in one browser: another browser or device can't see
+  them, and clearing the site's data deletes them. There's no export yet.
+- Until the frontend moves to S3 + CloudFront, the sandbox Lambda serves the
+  page to anyone with its address (guest mode). Only the page: the files API
+  still needs the password. Each visit is a few small requests to Lambda.
 
 - The hosted app has one shared password until Cognito login replaces it.
   Signing out is the address `/logout` (no button yet). Sessions last 30

@@ -1,8 +1,18 @@
 // Maplenote frontend. It talks to the Python server through the JSON API
 // described at the top of app.py, and keeps everything else in the browser.
 //
-// A tab can hold one of three kinds of file:
+// Two modes, chosen when the page loads:
+//   signed in (or running locally, where there's no sign-in): notes are files in
+//              the server's workspace, read and saved through the API.
+//   guest:     for visitors who aren't signed in. Notes are kept in this browser
+//              only (IndexedDB) and the API is never called, so a guest can't
+//              reach anyone's files. A first visit opens on a welcome note.
+// Both kinds of note go through `notes` (see "Where notes live"), which offers
+// the same calls and the same rules either way.
+//
+// A tab can hold one of four kinds of file:
 //   "workspace": a file in the server's workspace folder (read and saved via the API)
+//   "guest":     a guest's note, kept in this browser (guest mode only)
 //   "device":    a file opened from this device with the "Open…" button. The browser
 //                reads and saves it directly; the server never sees it.
 //   "copy":      the fallback for browsers that can't save to the original file.
@@ -47,9 +57,15 @@ const reconnectName = document.getElementById("reconnect-name");
 const reconnectButton = document.getElementById("reconnect-button");
 const unsavedDialog = document.getElementById("unsaved-dialog");
 const unsavedName = document.getElementById("unsaved-name");
+const guestBar = document.getElementById("guest-bar");
+
+// The server sets this cookie with the page when you're signed in (app.py's
+// index()). It's only a hint: the API checks the real session itself.
+const SIGNED_IN_COOKIE = "maplenote_signed_in";
+const guestMode = !document.cookie.split("; ").includes(`${SIGNED_IN_COOKIE}=1`);
 
 // Settings remembered in the browser.
-const SESSION_KEY = "maplenote.session";   // which tabs were open
+const SESSION_KEY = guestMode ? "maplenote.guest-session" : "maplenote.session"; // which tabs were open
 const AUTOSAVE_KEY = "maplenote.autosave"; // "on" or "off"
 const WRAP_KEY = "maplenote.wrap";         // "on" or "off"
 
@@ -60,9 +76,9 @@ const AUTOSAVE_DELAY_MS = 1000;
 // and neither can Chrome on an address it doesn't consider secure (e.g. penguin.linux.test).
 const canSaveToDevice = "showOpenFilePicker" in window;
 
-let scratchPath = null;          // the always-open scratch pad (the server tells us its name)
-let maxFileBytes = Infinity;     // size limit, also from the server
-let files = [];                  // every file in the workspace
+let scratchPath = null;          // the always-open scratch pad (`notes` tells us its name)
+let maxFileBytes = Infinity;     // size limit, also from `notes`
+let files = [];                  // every note: files in the workspace, or a guest's notes
 let tabs = [];                   // open files, see newTab()
 let activeTab = null;            // the tab shown in the editor
 let autosaveEnabled = readSetting(AUTOSAVE_KEY) !== "off";
@@ -106,7 +122,9 @@ async function api(method, url, body) {
   }
   const response = await fetch(url, options);
   // Signed out (only happens when hosted with a password): go and sign in again.
+  // Dropping the hint cookie means coming back without signing in is guest mode.
   if (response.status === 401) {
+    document.cookie = `${SIGNED_IN_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`;
     location.href = "/login";
   }
   const data = await response.json().catch(() => ({}));
@@ -124,7 +142,7 @@ function fileUrl(path) {
 }
 
 async function refreshFileList() {
-  const data = await api("GET", "/api/files");
+  const data = await notes.list();
   files = data.files;
   scratchPath = data.scratch;
   maxFileBytes = data.max_file_bytes;
@@ -354,21 +372,27 @@ previewPane.addEventListener("click", (event) => {
 // Two stores in the browser's IndexedDB (localStorage only holds small text):
 //   "handles": file handles for device tabs, so they come back after a refresh
 //   "drafts":  unsaved text for each tab, for crash recovery
-function browserStore(storeName, mode, action) {
+// (Guest notes have a database of their own, "maplenote-guest"; see below.)
+function openDatabase(name, version, storeNames) {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("maplenote", 2);
+    const request = indexedDB.open(name, version);
     request.onupgradeneeded = () => {
-      for (const name of ["handles", "drafts"]) {
-        if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name);
+      for (const storeName of storeNames) {
+        if (!request.result.objectStoreNames.contains(storeName)) request.result.createObjectStore(storeName);
       }
     };
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      const transaction = request.result.transaction(storeName, mode);
-      const result = action(transaction.objectStore(storeName));
-      transaction.oncomplete = () => resolve(result.result);
-      transaction.onerror = () => reject(transaction.error);
-    };
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function browserStore(storeName, mode, action) {
+  const database = await openDatabase("maplenote", 2, ["handles", "drafts"]);
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(storeName, mode);
+    const result = action(transaction.objectStore(storeName));
+    transaction.oncomplete = () => resolve(result.result);
+    transaction.onerror = () => reject(transaction.error);
   });
 }
 
@@ -395,6 +419,172 @@ async function applyDraft(tab) {
   // If the file has changed since the draft was made, saving the draft must not
   // overwrite that change: keep the old version so the save raises a conflict.
   tab.version = draft.baseVersion;
+}
+
+// ------------------------------------------------------- where notes live
+
+// Signed in or guest, the page reads and saves notes through one of these two,
+// with the same calls and the same errors (a `status` of 404, 409…, and
+// `conflict` plus the current `version` when a save would overwrite a change).
+
+// Signed in: files in the workspace on the server, through the API.
+const serverNotes = {
+  list: () => api("GET", "/api/files"), // { files, scratch, max_file_bytes }
+  read: (path) => api("GET", fileUrl(path)), // { path, content, version }
+  version: async (path) => (await api("GET", `/api/stat?path=${encodeURIComponent(path)}`)).version,
+  // Without a baseVersion the save overwrites whatever is there.
+  async save(path, content, baseVersion) {
+    try {
+      return (await api("PUT", fileUrl(path), { content, base_version: baseVersion })).version;
+    } catch (error) {
+      if (error.data?.conflict) Object.assign(error, { conflict: true, version: error.data.version });
+      throw error;
+    }
+  },
+  create: (path) => api("POST", fileUrl(path)),
+  remove: (path) => api("DELETE", fileUrl(path)),
+  rename: async (from, to) => (await api("POST", "/api/rename", { from, to })).path, // the new path
+};
+
+// Guest mode: notes in this browser's IndexedDB, in a database of their own
+// ("maplenote-guest", store "notes": path -> { content, version }). The rules
+// are the server's: tidy paths, a size limit, a scratch pad that can't be
+// renamed or deleted, and no overwriting a change made in another browser tab.
+const GUEST_SCRATCH = "scratch.txt";
+const GUEST_MAX_FILE_BYTES = 5 * 1024 * 1024; // as in the cloud; plenty for notes
+const WELCOME_NOTE = "Welcome.md";
+
+const guestError = (status, message, extra = {}) => Object.assign(new Error(message), { status }, extra);
+
+// A version is just a new random label each time a note is saved.
+const newVersion = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+// "a/./b/../c.txt" becomes "a/c.txt", as on the server; "/x" and "../x" are refused.
+function tidyPath(path) {
+  if (!path || path.includes("\0")) throw guestError(400, "That path isn't valid.");
+  if (path.startsWith("/")) throw guestError(403, "That path is outside your notes.");
+  const parts = [];
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part !== "..") parts.push(part);
+    else if (!parts.pop()) throw guestError(403, "That path is outside your notes.");
+  }
+  if (!parts.length) throw guestError(403, "That path is outside your notes.");
+  return parts.join("/");
+}
+
+// Look up one note and act on it in a single transaction, so that everything
+// `act` does happens or none of it does, even with Maplenote open in two
+// browser tabs. `act` gets the note (undefined if there's none) and the store,
+// and may throw to cancel.
+async function withGuestNote(path, mode, act) {
+  const database = await openDatabase("maplenote-guest", 1, ["notes"]);
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction("notes", mode);
+    const store = transaction.objectStore("notes");
+    let result, failure;
+    store.get(path).onsuccess = (event) => {
+      try {
+        result = act(event.target.result, store);
+      } catch (error) {
+        failure = error;
+        transaction.abort();
+      }
+    };
+    transaction.oncomplete = () => resolve(result);
+    // A failed step (e.g. add() finding the name taken) cancels the whole transaction.
+    transaction.onabort = () => reject(failure ?? transaction.error);
+  });
+}
+
+// add() fails with a ConstraintError when the name is taken.
+const alreadyExists = (path) => (error) => {
+  throw error?.name === "ConstraintError" ? guestError(409, `'${path}' already exists.`) : error;
+};
+
+const browserNotes = {
+  async list() {
+    const database = await openDatabase("maplenote-guest", 1, ["notes"]);
+    const paths = await new Promise((resolve, reject) => {
+      const request = database.transaction("notes").objectStore("notes").getAllKeys();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    paths.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    return { files: paths, scratch: GUEST_SCRATCH, max_file_bytes: GUEST_MAX_FILE_BYTES };
+  },
+  async read(path) {
+    path = tidyPath(path);
+    const note = await withGuestNote(path, "readonly", (found) => found);
+    if (!note) throw guestError(404, "File not found.");
+    return { path, content: note.content, version: note.version };
+  },
+  version: async (path) => (await browserNotes.read(path)).version,
+  async save(path, content, baseVersion) {
+    path = tidyPath(path);
+    if (new TextEncoder().encode(content).length > GUEST_MAX_FILE_BYTES) {
+      throw guestError(413, `File is larger than ${GUEST_MAX_FILE_BYTES / 1048576} MB.`);
+    }
+    return withGuestNote(path, "readwrite", (note, store) => {
+      // A note that no longer exists is simply created again, as on the server.
+      if (note && baseVersion != null && note.version !== baseVersion) {
+        throw guestError(409, `'${path}' was changed somewhere else.`, { conflict: true, version: note.version });
+      }
+      const version = newVersion();
+      store.put({ content, version }, path);
+      return version;
+    });
+  },
+  async create(path) {
+    path = tidyPath(path);
+    await withGuestNote(path, "readwrite", (_note, store) => {
+      store.add({ content: "", version: newVersion() }, path);
+    }).catch(alreadyExists(path));
+    return { path, created: true };
+  },
+  async remove(path) {
+    path = tidyPath(path);
+    if (path === GUEST_SCRATCH) throw guestError(403, "The scratch pad can't be deleted.");
+    await withGuestNote(path, "readwrite", (note, store) => {
+      if (!note) throw guestError(404, "File not found.");
+      store.delete(path);
+    });
+  },
+  async rename(from, to) {
+    [from, to] = [tidyPath(from), tidyPath(to)];
+    if (from === GUEST_SCRATCH) throw guestError(403, "The scratch pad can't be renamed.");
+    await withGuestNote(from, "readwrite", (note, store) => {
+      if (!note) throw guestError(404, "File not found.");
+      store.add(note, to); // if `to` is taken, this fails and the delete is cancelled too
+      store.delete(from);
+    }).catch(alreadyExists(to));
+    return to;
+  },
+};
+
+const notes = guestMode ? browserNotes : serverNotes;
+
+// Note tabs (workspace or guest) remember their note's path; their key is the
+// path, with "guest:" in front for a guest's notes so the two never mix (drafts
+// are kept by key).
+const noteKind = guestMode ? "guest" : "workspace";
+const noteKey = (path) => (guestMode ? `guest:${path}` : path);
+const pathOfKey = (key) => (guestMode ? key.replace(/^guest:/, "") : key);
+const isNote = (tab) => tab?.kind === "workspace" || tab?.kind === "guest";
+const isScratch = (tab) => isNote(tab) && tab.path === scratchPath;
+
+// A guest's first visit: make the scratch pad and the welcome note. True if
+// this was the first visit.
+async function setUpGuestNotes() {
+  if ((await browserNotes.list()).files.includes(GUEST_SCRATCH)) return false;
+  await browserNotes.save(GUEST_SCRATCH, "");
+  try {
+    const response = await fetch("/static/welcome.md");
+    if (response.ok) await browserNotes.save(WELCOME_NOTE, await response.text());
+  } catch {
+    // Offline: start without the welcome note.
+  }
+  return true;
 }
 
 // ------------------------------------------------------------ device files
@@ -501,17 +691,18 @@ reconnectButton.addEventListener("click", async () => {
 
 // --------------------------------------------------------------------- tabs
 
-// key:         unique id for the tab (the path for workspace files)
+// key:         unique id for the tab (see noteKey() for workspace and guest notes)
+// path:        a note's path (workspace and guest tabs only)
 // name:        what the tab shows
 // state:       the CodeMirror state: text, cursor and undo history
 // savedDoc:    the text as it was last loaded or saved, to tell if there are unsaved edits
 // version:     the version of the file this tab last loaded or saved
 // conflict:    set when the file changed elsewhere: { theirVersion }
 // recoveredAt: set when the tab holds a recovered draft (the draft's time)
-function newTab({ kind, key, name, content = "", version = null, loaded = true }) {
+function newTab({ kind, key, path = null, name, content = "", version = null, loaded = true }) {
   const state = createEditorState(content);
   return {
-    kind, key, name, state, version, loaded,
+    kind, key, path, name, state, version, loaded,
     savedDoc: state.doc,
     conflict: null,
     recoveredAt: null,
@@ -529,16 +720,20 @@ function newTab({ kind, key, name, content = "", version = null, loaded = true }
 const isDirty = (tab) => !tab.state.doc.eq(tab.savedDoc);
 const findTab = (key) => tabs.find((tab) => tab.key === key);
 
-// Open a workspace file in a tab (or switch to its tab if it's already open).
+// Open a note (a workspace file, or a guest's note) in a tab, or switch to its tab
+// if it's already open.
 async function openFile(path, { activate = true } = {}) {
-  let tab = findTab(path);
+  let tab = findTab(noteKey(path));
   if (!tab) {
-    const file = await api("GET", fileUrl(path));
-    tab = findTab(file.path); // the server may have tidied the path, e.g. "./a.txt" -> "a.txt"
+    const file = await notes.read(path);
+    tab = findTab(noteKey(file.path)); // the path may have been tidied, e.g. "./a.txt" -> "a.txt"
     if (!tab) {
-      tab = newTab({ kind: "workspace", key: file.path, name: file.path, content: file.content, version: file.version });
+      tab = newTab({
+        kind: noteKind, key: noteKey(file.path), path: file.path, name: file.path,
+        content: file.content, version: file.version,
+      });
       // The scratch pad always sits first.
-      if (tab.key === scratchPath) tabs.unshift(tab);
+      if (isScratch(tab)) tabs.unshift(tab);
       else tabs.push(tab);
     }
   }
@@ -588,7 +783,7 @@ function askToSave(tab) {
 // Close a tab. Unsaved edits are saved first when the tab autosaves; otherwise you're
 // asked whether to save them. Pass discard: true to close without saving or asking.
 async function closeTab(tab, { discard = false } = {}) {
-  if (tab.key === scratchPath) return;
+  if (isScratch(tab)) return;
   clearTimeout(tab.timer);
   if (!discard && isDirty(tab)) {
     let choice = "save";
@@ -643,7 +838,7 @@ function loadSession() {
 // Bring back a tab from last time, with any unsaved draft. Throws if its file is gone.
 async function restoreTab(key) {
   if (!key.startsWith("device:")) {
-    const tab = await openFile(key, { activate: false });
+    const tab = await openFile(pathOfKey(key), { activate: false });
     await applyDraft(tab);
     return;
   }
@@ -709,8 +904,8 @@ async function saveTab(tab, { manual = false } = {}) {
   const content = doc.toString();
   if (tab === activeTab) showStatus("Saving…");
   try {
-    tab.version = tab.kind === "workspace"
-      ? await saveToWorkspace(tab, content)
+    tab.version = isNote(tab)
+      ? await notes.save(tab.path, content, tab.version)
       : await saveToDevice(tab, content, manual);
     tab.savedDoc = doc;
     if (!isDirty(tab)) forgetDraft(tab.key);
@@ -734,16 +929,6 @@ async function saveTab(tab, { manual = false } = {}) {
   if (tab.saveAgain) {
     tab.saveAgain = false;
     if (autosaveEnabled) saveTab(tab);
-  }
-}
-
-async function saveToWorkspace(tab, content) {
-  try {
-    const result = await api("PUT", fileUrl(tab.key), { content, base_version: tab.version });
-    return result.version;
-  } catch (error) {
-    if (error.data?.conflict) Object.assign(error, { conflict: true, version: error.data.version });
-    throw error;
   }
 }
 
@@ -771,10 +956,10 @@ function downloadCopy(name, content) {
 
 // --------------------------------------------- changes made somewhere else
 
-// Read the file as it is right now (on the server or the device).
+// Read the file as it is right now (on the server, in the browser's notes, or on the device).
 async function readCurrent(tab) {
-  if (tab.kind === "workspace") {
-    const file = await api("GET", fileUrl(tab.key));
+  if (isNote(tab)) {
+    const file = await notes.read(tab.path);
     return { content: file.content, version: file.version };
   }
   const file = await tab.handle.getFile();
@@ -788,8 +973,8 @@ async function checkForOutsideChanges(tab) {
   const expected = tab.version;
   let version;
   try {
-    if (tab.kind === "workspace") {
-      version = (await api("GET", `/api/stat?path=${encodeURIComponent(tab.key)}`)).version;
+    if (isNote(tab)) {
+      version = await notes.version(tab.path);
     } else {
       if (!(await hasPermission(tab.handle, "read", false))) return;
       version = (await tab.handle.getFile()).lastModified;
@@ -826,10 +1011,10 @@ async function keepMine(tab) {
   await saveTab(tab, { manual: true });
 }
 
-// Conflict choice 3 (workspace files): save this tab's version as a new file, then load theirs.
+// Conflict choice 3 (notes): save this tab's version as a new file, then load theirs.
 async function saveMineAsCopy(tab) {
-  const copyPath = await createConflictCopy(tab.key);
-  await api("PUT", fileUrl(copyPath), { content: textOf(tab) });
+  const copyPath = await createConflictCopy(tab.path);
+  await notes.save(copyPath, textOf(tab));
   await loadTheirs(tab);
   await refreshFileList();
   showStatus(`Your version was saved as ${copyPath}`);
@@ -843,7 +1028,7 @@ async function createConflictCopy(path) {
   for (let n = 1; ; n++) {
     const candidate = `${stem} (conflict${n > 1 ? ` ${n}` : ""})${extension}`;
     try {
-      await api("POST", fileUrl(candidate));
+      await notes.create(candidate);
       return candidate;
     } catch (error) {
       if (error.status !== 409 || n >= 50) throw error;
@@ -872,7 +1057,7 @@ async function newFile() {
   const path = prompt("New file name (e.g. notes.md or ideas/todo.txt):");
   if (!path) return;
   try {
-    await api("POST", fileUrl(path));
+    await notes.create(path);
   } catch (error) {
     // 409 means it already exists: just open it.
     if (error.status !== 409) return showStatus(error.message, true);
@@ -886,19 +1071,20 @@ async function newFile() {
   }
 }
 
-// Only workspace files (other than the scratch pad) can be renamed or deleted.
-const canRenameOrDelete = (tab) => tab?.kind === "workspace" && tab.key !== scratchPath;
+// Only notes (other than the scratch pad) can be renamed or deleted.
+const canRenameOrDelete = (tab) => isNote(tab) && !isScratch(tab);
 
 async function renameActive() {
   const tab = activeTab;
   if (!canRenameOrDelete(tab)) return;
-  const newPath = prompt("Rename to:", tab.key);
-  if (!newPath || newPath === tab.key) return;
+  const newPath = prompt("Rename to:", tab.path);
+  if (!newPath || newPath === tab.path) return;
   try {
-    const result = await api("POST", "/api/rename", { from: tab.key, to: newPath });
-    showStatus(`Renamed ${tab.key} → ${result.path}`);
+    const renamedTo = await notes.rename(tab.path, newPath);
+    showStatus(`Renamed ${tab.path} → ${renamedTo}`);
     forgetDraft(tab.key);
-    tab.key = tab.name = result.path;
+    tab.path = tab.name = renamedTo;
+    tab.key = noteKey(renamedTo);
     if (isDirty(tab)) storeDraft(tab);
     document.title = `${tab.name} · Maplenote`;
     showEditorOrPreview(tab); // e.g. renaming notes.md to notes.txt leaves the preview
@@ -914,13 +1100,13 @@ async function renameActive() {
 async function deleteActive() {
   const tab = activeTab;
   if (!canRenameOrDelete(tab)) return;
-  if (!confirm(`Delete ${tab.key}? This can't be undone.`)) return;
+  if (!confirm(`Delete ${tab.path}? This can't be undone.`)) return;
   try {
     clearTimeout(tab.timer); // don't let a pending autosave bring the file back
-    await api("DELETE", fileUrl(tab.key));
+    await notes.remove(tab.path);
     await closeTab(tab, { discard: true });
     await refreshFileList();
-    showStatus(`Deleted ${tab.key}`);
+    showStatus(`Deleted ${tab.path}`);
   } catch (error) {
     showStatus(error.message, true);
   }
@@ -952,12 +1138,13 @@ function renderTabs() {
     element.className = "tab";
     element.classList.toggle("active", tab === activeTab);
     element.classList.toggle("dirty", isDirty(tab));
-    element.classList.toggle("pinned", tab.key === scratchPath);
-    element.classList.toggle("device", tab.kind !== "workspace");
+    element.classList.toggle("pinned", isScratch(tab));
+    element.classList.toggle("device", tab.kind === "device" || tab.kind === "copy");
     element.classList.toggle("conflict", Boolean(tab.conflict));
     element.setAttribute("role", "tab");
     element.title = {
       workspace: tab.name,
+      guest: `${tab.name} (saved in this browser)`,
       device: `${tab.name} (on your device)`,
       copy: `${tab.name} (a copy: Save downloads it)`,
     }[tab.kind];
@@ -995,7 +1182,7 @@ function renderBanner() {
     message = `⚠ ${tab.name} was changed somewhere else since you opened it.`;
     style = "warning";
     actions = [["Load their version", loadTheirs], ["Keep mine", keepMine]];
-    if (tab.kind === "workspace") actions.push(["Save mine as a copy", saveMineAsCopy]);
+    if (isNote(tab)) actions.push(["Save mine as a copy", saveMineAsCopy]);
   } else if (tab?.recoveredAt) {
     message = `Recovered unsaved changes from ${clockTime(tab.recoveredAt)}.`;
     actions = [["Keep them", keepRecovered], ["Discard", discardRecovered]];
@@ -1068,7 +1255,7 @@ function renderFolder(node, folderPath) {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "file-item";
-    item.classList.toggle("active", activeTab?.kind === "workspace" && path === activeTab.key);
+    item.classList.toggle("active", isNote(activeTab) && path === activeTab.path);
     item.textContent = path.split("/").pop();
     item.title = path;
     item.addEventListener("click", () => {
@@ -1118,10 +1305,16 @@ window.addEventListener("beforeunload", (event) => {
 window.addEventListener("pagehide", () => tabs.filter(isDirty).forEach(storeDraft));
 
 async function start() {
+  let session = loadSession();
+  if (guestMode) {
+    guestBar.hidden = false;
+    // A first visit opens on the welcome note, shown rendered.
+    const welcome = noteKey(WELCOME_NOTE);
+    if (await setUpGuestNotes()) session = { open: [welcome], active: welcome, preview: [welcome] };
+  }
   await refreshFileList();
-  const session = loadSession();
   // Reopen the scratch pad first, then whatever was open last time.
-  for (const key of new Set([scratchPath, ...(session.open ?? [])])) {
+  for (const key of new Set([noteKey(scratchPath), ...(session.open ?? [])])) {
     try {
       await restoreTab(key);
     } catch {

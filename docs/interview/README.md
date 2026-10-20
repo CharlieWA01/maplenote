@@ -200,3 +200,27 @@ the architecture and why it's that way. That's what these stories are for.
 - **Lesson:** a stopgap is fine if it's honest about being one and fails
   safe: the dangerous mistake (a forgotten setting) produces an outage, not
   an exposure.
+
+## A public demo that can't reach my data
+**Tags:** Security, Design
+
+- **Situation:** I wanted Maplenote on a portfolio site that an employer
+  could click and use at once, with no sign-up. But it's also my real notes
+  app, with my files in S3 behind a login.
+- **Task:** Let strangers use the full editor without giving them any path
+  to my files, my AWS bill or each other's notes.
+- **Action:** Made guests' notes live only in their own browser (IndexedDB),
+  never on a server. In the code, both modes go through one small
+  interface, `notes`: one version calls the server's API, the other uses
+  the browser's database, with the same calls and errors, so the rest of
+  the editor (tabs, autosave, crash recovery, conflict detection) didn't
+  have to change. The server opens only the page and its scripts; the
+  files API still needs a login, so the guest/signed-in switch in the page
+  is a convenience, not the lock. Tests open the app as a guest and fail if
+  any request reaches the API.
+- **Result:** A guest gets the whole editor, including conflict detection
+  between two browser tabs, at no cost to me. Faking "signed in" gets you
+  a page whose every API call is refused.
+- **Lesson:** decide where the real security boundary is (the server) and
+  keep the browser-side switch as a hint, so a bug or a tampered page can't
+  open anything up.

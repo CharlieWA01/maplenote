@@ -216,21 +216,37 @@ def password(monkeypatch):
 
 
 def test_without_a_password_setting_nothing_is_asked(client):
-    assert client.get("/").status_code == 200
+    page = client.get("/")
+    assert page.status_code == 200
+    # Running locally counts as signed in: the page starts on the real files.
+    assert f"{auth.SIGNED_IN_COOKIE}=1" in page.headers["Set-Cookie"]
     assert client.get("/api/files").status_code == 200
 
 
-def test_password_is_required_for_pages_files_and_api(client, password):
-    for path in ("/static/app.js", "/api/files", url("scratch.txt")):
+def test_password_is_required_for_the_files_api(client, password):
+    for path in ("/api/files", url("scratch.txt"), "/api/stat?path=scratch.txt", "/logout", "/nowhere"):
         assert client.get(path).status_code == 401, path
     assert client.put(url("a.txt"), json={"content": "x"}).status_code == 401
-    # The page itself sends the browser to the sign-in page instead.
-    response = client.get("/")
-    assert response.status_code == 303
-    assert response.headers["Location"].endswith("/login")
+    assert client.post(url("a.txt")).status_code == 401
+    assert client.delete(url("scratch.txt")).status_code == 401
+    assert client.post("/api/rename", json={"from": "a.txt", "to": "b.txt"}).status_code == 401
     # No WWW-Authenticate header: it would make the browser show its own
     # sign-in box locally, and AWS drops it anyway.
     assert "WWW-Authenticate" not in client.get("/api/files").headers
+
+
+def test_page_and_scripts_are_open_for_guest_mode(client, password):
+    """Guest mode runs in the browser, so the page loads without signing in,
+    with the "signed in" hint cleared so the page starts as a guest."""
+    page = client.get("/")
+    assert page.status_code == 200
+    cookie = page.headers["Set-Cookie"]
+    assert cookie.startswith(f"{auth.SIGNED_IN_COOKIE}=;") and "Max-Age=0" in cookie
+    for path in ("/static/app.js", "/static/style.css", "/static/welcome.md", "/static/vendor/codemirror.js"):
+        assert client.get(path).status_code == 200, path
+    # Faking the hint gets the page, never the files.
+    client.set_cookie(auth.SIGNED_IN_COOKIE, "1")
+    assert client.get("/api/files").status_code == 401
 
 
 def test_sign_in_page_and_its_style_are_open(client, password):
@@ -250,8 +266,12 @@ def test_signing_in_sets_a_cookie_that_lets_everything_through(client, password)
     cookie = response.headers["Set-Cookie"]
     for flag in ("HttpOnly", "Secure", "SameSite=Lax", "Max-Age=2592000"):
         assert flag in cookie, flag
-    # The test client keeps the cookie, like a browser.
-    assert client.get("/").status_code == 200
+    # The test client keeps the cookie, like a browser. The page now tells
+    # its script to start signed in, with a cookie scripts can read.
+    page = client.get("/")
+    assert page.status_code == 200
+    hint = page.headers["Set-Cookie"]
+    assert hint.startswith(f"{auth.SIGNED_IN_COOKIE}=1;") and "HttpOnly" not in hint
     assert client.put(url("a.txt"), json={"content": "hi"}).status_code == 200
     assert client.get(url("a.txt")).get_json()["content"] == "hi"
 
@@ -268,6 +288,9 @@ def test_signing_out_ends_the_session(client, password):
     sign_in(client, password)
     response = client.get("/logout")
     assert response.headers["Location"].endswith("/login")
+    cleared = response.headers.getlist("Set-Cookie")
+    for name in (auth.SESSION_COOKIE, auth.SIGNED_IN_COOKIE):
+        assert any(c.startswith(f"{name}=;") for c in cleared), name
     assert client.get("/api/files").status_code == 401
 
 

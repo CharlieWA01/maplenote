@@ -471,3 +471,51 @@ send to an employer who will only glance at it. Keeping guests in the
 browser means they cost nothing and can't reach Charlie's files or AWS.
 **Trade-offs:** a guest's notes live in one browser and vanish if its data
 is cleared. Guest and signed-in modes are two paths to keep tested.
+
+## 2026-10-20: How guest mode works: an open page, a "signed in" hint cookie, and one `notes` interface
+
+**Decision:** the details of building the guest mode decided above.
+- **The page is open, the API isn't.** With a password set, `/` and
+  everything under `/static/` load without signing in; every other path
+  (the files API, `/logout`) still answers 401. This follows the rule as
+  it now reads: the page and its scripts read and write no files.
+- **The page picks its mode from a cookie.** Each time the server serves
+  the page it sets `maplenote_signed_in=1` if the request is signed in
+  (always, locally, where there's no password) and clears it otherwise.
+  The script reads it: present means the real files through the API,
+  absent means guest mode. It's only a hint that scripts can read, so it
+  grants nothing: faking it gets a page whose API calls are refused. It
+  isn't marked `Secure`, so it also works on the Chromebook's plain-HTTP
+  address. Signing out clears it, and so does a 401 from the API.
+- **One interface for notes.** The page reads and saves through `notes`,
+  which is either `serverNotes` (the API) or `browserNotes` (IndexedDB),
+  with the same calls and the same errors (404, 409, 413…). Guest notes are
+  a new tab kind, `guest`, keyed `guest:<path>` so their drafts never mix
+  with workspace files.
+- **The server's rules, repeated in the browser:** tidy paths and refuse
+  `../`, a 5 MB limit, a scratch pad that can't be renamed or deleted, and
+  no overwriting a change made in another browser tab (each save gets a new
+  random version, checked and written in one IndexedDB transaction).
+- **A database of its own** (`maplenote-guest`), rather than a third store
+  in the existing `maplenote` database.
+- **The welcome note** is `static/welcome.md`, copied into a guest's notes
+  on their first visit and opened in Preview. Deleting it is permanent.
+
+**Alternatives:**
+- *Ask the server "am I signed in?" on load:* simplest, but every guest
+  visit would reach Lambda, which the plan avoids once the page is on
+  CloudFront.
+- *Guest mode only at a separate address (`/guest`):* visitors would land
+  on a sign-in page first, which is what the portfolio must not do.
+- *Keep the page locked on the sandbox until CloudFront exists:* guest mode
+  couldn't be tried anywhere but the tests.
+- *A third store in the existing database:* means raising its version
+  number, and a Maplenote tab left open from before the upgrade would block
+  it until reloaded. A separate database avoids that, and is easy to wipe.
+
+**Why:** guest mode works now on the sandbox URL, with the same page that
+will move to CloudFront, and the code beyond the notes layer doesn't care
+which mode it's in. **Trade-offs:** the sandbox Lambda now serves the page
+to anyone with its address (cost: fractions of a cent; the 10-at-once
+limit still caps it). The browser repeats the server's rules, so a rule
+change means changing both (the tests check both).

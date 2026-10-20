@@ -39,6 +39,11 @@ also wanted a real project to learn git, GitHub and software design on.
   it and checks the live URL asks for a password, all without stored AWS
   keys (OIDC). A password with a server-side scrypt hash protects it until
   Cognito login; the app refuses to start on Lambda without one.
+- **Guest mode for visitors:** no login; their notes live in their own
+  browser (IndexedDB) behind the same interface as the server's files, with
+  the server's rules repeated there (conflict detection across browser tabs,
+  path checks, size limit). Guests never reach the files API, so trying the
+  app costs nothing and can't touch real files.
 - **Checked on real AWS:** after each merge that touches storage, GitHub
   Actions signs in to AWS without stored keys (OIDC) and runs the storage
   code against a real, private, encrypted S3 bucket, with a role that can
@@ -67,7 +72,7 @@ environment · built with Claude Code.
 ## By the numbers
 - 15 reviewed pull requests in 3 days, from an empty repo to a live app on
   AWS (v1 features in the first 5)
-- 127 automated tests: 122 (API, storage on local disk and a fake S3,
+- 135 automated tests: 130 (API, storage on local disk and a fake S3,
   real-browser scenarios) run on every pull request, 5 more against the real
   S3 bucket; each protection was proven by sabotaging it and watching the
   tests fail
@@ -96,11 +101,13 @@ why it's built that way.
   (path confinement, Host allowlist, Content-Security-Policy, HTML-disabled
   Markdown rendering), verified with automated injection tests.
 - Ran the project through a branch-and-pull-request workflow with code review,
-  a 122-test automated suite (pytest, Playwright) in GitHub Actions CI and a
+  a 130-test automated suite (pytest, Playwright) in GitHub Actions CI and a
   written decision log; directed an AI coding agent (Claude Code) through
   requirements, design and review.
 
 ## What's next
-Cognito login to replace the stopgap password, then polish; see
+The portfolio site: the page served from S3 + CloudFront in the
+workloads-prod account, then Cognito login to replace the stopgap
+password, then polish; see
 `docs/ROADMAP.md`. The AWS side (Terraform) lives in the `cloud-homelab`
 repo.
