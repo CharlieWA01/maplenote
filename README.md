@@ -9,7 +9,10 @@ runs two ways:
 - **Hosted on AWS** (since 2026-10-19): the same app, packaged as a Docker
   image, runs on AWS Lambda in the sandbox account, with notes in an S3
   bucket and a password sign-in page in front. GitHub Actions deploys it
-  after every merge. The AWS side (Terraform) lives in the `cloud-homelab`
+  after every merge.
+- **As a guest** (since 2026-10-20): anyone who isn't signed in gets the
+  same editor, with notes kept only in their own browser. Guests never
+  reach the files API, so they can't see or change anyone's files. The AWS side (Terraform) lives in the `cloud-homelab`
   repo.
 
 The same Docker image can also run on any Linux machine with Docker, such

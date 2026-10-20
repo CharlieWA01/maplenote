@@ -22,8 +22,7 @@ def password_on(monkeypatch):
 
 
 def sign_in(page, password):
-    page.goto("/")
-    expect(page.locator("#password")).to_be_visible()  # sent to the sign-in page
+    page.goto("/login")
     page.fill("#password", password)
     page.click("button[type=submit]")
 
@@ -31,6 +30,7 @@ def sign_in(page, password):
 def test_sign_in_then_edit_and_save(page, workspace):
     sign_in(page, PASSWORD)
     expect(page.locator(".tab")).not_to_have_count(0)
+    expect(page.locator("#guest-bar")).to_be_hidden()
     type_at_end(page, "typed behind a password")
     wait_for_file(workspace / "scratch.txt", "typed behind a password")
     # Still signed in after a reload (the cookie is kept).
@@ -48,8 +48,9 @@ def test_signing_out_returns_to_the_sign_in_page(page):
     expect(page.locator(".tab")).not_to_have_count(0)
     page.goto("/logout")
     expect(page.locator("#password")).to_be_visible()
+    # Signed out, the page opens in guest mode.
     page.goto("/")
-    expect(page.locator("#password")).to_be_visible()
+    expect(page.locator("#guest-bar")).to_be_visible()
 
 
 def test_page_goes_to_sign_in_when_the_session_ends(page, context):

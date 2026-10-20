@@ -79,6 +79,17 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .status.error { color: var(--error); }
 
+.guest-bar {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.guest-bar a { color: var(--accent); }
+
 /* ---- Sidebar + editor area ---- */
 
 .workspace {

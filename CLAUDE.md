@@ -43,18 +43,25 @@ appear under Charlie's account).
   its tests run against a fake S3 (moto), never real AWS.
 - `config.py`: every setting, each overridable by a `MAPLENOTE_*` env var.
 - `auth.py`: one password (checked against an scrypt hash in
-  `MAPLENOTE_PASSWORD_HASH`) in front of everything when hosted; off locally.
+  `MAPLENOTE_PASSWORD_HASH`) in front of the API when hosted; off locally.
   A sign-in page (`/login`, `static/login.html`) sets a signed session
   cookie; HTTP Basic also works for scripts. `/logout` signs out.
+  The page and `/static/` are open (guest mode); the API is not.
   On Lambda the app refuses to start without the hash. Cognito replaces it later.
 - `Dockerfile`: the one image for Lambda and anywhere else (gunicorn, one
   worker, plus AWS's Lambda Web Adapter). The `deploy-sandbox` workflow
   ships it; the AWS resources are Terraform in the `cloud-homelab` repo
   (`terraform/sandbox/maplenote-app.tf`).
 - `static/`: plain HTML/CSS/JS, no build step. `app.js` holds tabs, sidebar
-  and file actions. A tab's `kind` says where its file lives: `workspace`
-  (via the server API), `device` (opened with "Open…", read and saved by the
+  and file actions. Two modes: signed in (or local), and **guest** (not
+  signed in: notes in the browser's IndexedDB, the API never called; the
+  server's `maplenote_signed_in` cookie tells the page which). Notes go
+  through `notes`: `serverNotes` (the API) or `browserNotes` (IndexedDB,
+  repeating the server's rules). A tab's `kind` says where its file lives:
+  `workspace` (via the server API), `guest` (a guest's note), `device`
+  (opened with "Open…", read and saved by the
   browser directly; the server never sees it) or `copy` (fallback).
+  A guest's first visit opens `static/welcome.md`.
   Every save goes through `saveTab()`; each tab tracks the file `version`
   it last saw, and saves carry it so changes made elsewhere aren't
   overwritten (the server returns 409 for workspace files).

@@ -19,10 +19,14 @@ API
   DELETE /api/file?path=notes.md  -> deletes the file
   POST   /api/rename  with body {"from": "a.txt", "to": "b.txt"}  -> renames a file
 
-When a password is set (MAPLENOTE_PASSWORD_HASH, on AWS), every request,
-pages included, needs a session cookie from the sign-in page (/login) or the
-password itself; otherwise the page redirects to /login and everything else
-gets a 401. /logout signs out. See auth.py.
+When a password is set (MAPLENOTE_PASSWORD_HASH, on AWS), the API needs a
+session cookie from the sign-in page (/login) or the password itself, and
+answers 401 without one. /logout signs out. See auth.py.
+
+The page and its scripts are open to everyone: visitors who aren't signed in
+use guest mode, where notes are kept in their own browser and the API is
+never called (see static/app.js). The page tells the two apart by a
+"signed in" cookie that the server sets or clears each time it serves the page.
 
 A "version" is a fingerprint of a file's contents. The browser sends back the
 version it last saw when saving; if the file has changed since (another tab,
@@ -67,26 +71,30 @@ def host_is_allowed(hostname):
     return False
 
 
-# Reachable without signing in: the sign-in page and its stylesheet.
-OPEN_PATHS = {"/login", "/static/style.css"}
+# Reachable without signing in: the page, its scripts and styles (guest mode
+# runs entirely in the browser), and the sign-in page. None of them read or
+# write files. Everything else, the files API above all, needs signing in.
+OPEN_PATHS = {"/", "/login"}
+OPEN_PREFIX = "/static/"
+
+
+def is_signed_in():
+    """True when no password is set (running locally), or the request carries
+    a valid session cookie (from /login) or the password itself (HTTP Basic,
+    for scripts). See auth.py."""
+    if not config.PASSWORD_HASH:
+        return True
+    if auth.session_is_valid(request.cookies.get(auth.SESSION_COOKIE), config.PASSWORD_HASH):
+        return True
+    return auth.is_allowed(request.headers.get("Authorization"), config.PASSWORD_HASH)
 
 
 @app.before_request
 def check_password():
-    """When a password is set (on AWS), refuse requests from anyone not signed in.
-
-    Signed in means a valid session cookie (from /login), or the password
-    sent with HTTP Basic authentication (for scripts). The page itself is
-    redirected to the sign-in page; everything else gets a 401. See auth.py.
-    """
-    if not config.PASSWORD_HASH or request.path in OPEN_PATHS:
+    """When a password is set (on AWS), refuse anything but the open paths to
+    anyone not signed in, with a 401 (which sends an open page to /login)."""
+    if request.path in OPEN_PATHS or request.path.startswith(OPEN_PREFIX) or is_signed_in():
         return None
-    if auth.session_is_valid(request.cookies.get(auth.SESSION_COOKIE), config.PASSWORD_HASH):
-        return None
-    if auth.is_allowed(request.headers.get("Authorization"), config.PASSWORD_HASH):
-        return None
-    if request.method == "GET" and request.path == "/":
-        return redirect("/login", code=303)
     return jsonify(error="Maplenote needs its password: reload the page to sign in."), 401
 
 
@@ -123,6 +131,7 @@ def log_in():
 def log_out():
     response = redirect("/login", code=303)
     response.delete_cookie(auth.SESSION_COOKIE, secure=True, httponly=True, samesite="Lax")
+    response.delete_cookie(auth.SIGNED_IN_COOKIE, samesite="Lax")
     return response
 
 
@@ -192,7 +201,18 @@ def storage_error(error):
 
 @app.get("/")
 def index():
-    return send_from_directory(app.static_folder, "index.html")
+    """The page, plus a cookie telling its script whether to start signed in
+    (the real notes, through the API) or in guest mode (notes in the browser)."""
+    response = send_from_directory(app.static_folder, "index.html")
+    if is_signed_in():
+        # Only a hint for the page, never a key: the API checks the real
+        # session itself. So scripts may read it (no HttpOnly), and it isn't
+        # limited to HTTPS (Secure), which Chrome would otherwise ignore on
+        # penguin.linux.test, the Chromebook's plain-HTTP address.
+        response.set_cookie(auth.SIGNED_IN_COOKIE, "1", max_age=auth.SESSION_SECONDS, samesite="Lax")
+    else:
+        response.delete_cookie(auth.SIGNED_IN_COOKIE, samesite="Lax")
+    return response
 
 
 # -------------------------------------------------------------------------- API
