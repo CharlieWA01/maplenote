@@ -86,6 +86,15 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - "What's new" hint: mark the version in the status bar when it changed
   since your last visit
 - Guest mode: a "reset" button that restores the welcome note
+- Stop the occasional `public.ecr.aws` 429 (see "Known limitations"): sign
+  the deploy in first (`aws ecr-public get-login-password --region
+  us-east-1 | docker login --username AWS --password-stdin public.ecr.aws`),
+  which needs `ecr-public:GetAuthorizationToken` and
+  `sts:GetServiceBearerToken` on the deploy role in `cloud-homelab`. The
+  account then gets 5 TB a month free instead of the shared 500 GB per IP.
+  Doesn't help PR builds (the role trusts `main` only). Drafted and closed
+  unmerged on 2026-10-20 (`cloud-homelab#15`, `maplenote#21`) when Charlie
+  chose to re-run for now. Promote it if re-runs get annoying
 - Retry a newer Playwright (pinned at 1.56): check whether the crash when
   restoring a stored test file handle after a reload is gone in newer Chromium
 - Update the docs workflows (`docs-check`, `docs-history`) in both repos from
@@ -114,6 +123,13 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   DECISIONS.md, 2026-10-19). A long random password keeps guessing hopeless.
 - In S3 storage, renaming is a copy followed by a delete (S3 has no rename). If
   the second step fails, the file exists under both names; nothing is lost.
+- Image builds (the deploy and the PR `tests` image job) download the
+  Lambda Web Adapter from AWS's public registry (`public.ecr.aws`) without
+  signing in. Anonymous downloads get 500 GB a month **per IP address**,
+  and GitHub's runners share their addresses with everyone, so a build
+  sometimes fails with "429 Too Many Requests: Data limit exceeded". A
+  re-run (another runner, another address) fixes it. Seen twice on
+  2026-10-20 (#16's build, the deploy after #20). Fix parked below.
 - Files with Windows line endings (CRLF) are saved back with Linux endings (LF).
 - Deleting or renaming the last file in a folder leaves the empty folder behind (it's hidden from the sidebar).
 - Files opened from the device (↗ tabs) can't be renamed or deleted from Maplenote.
