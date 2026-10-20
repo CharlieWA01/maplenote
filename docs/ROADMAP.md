@@ -35,7 +35,22 @@ Needs `cloud-homelab` Phase 2 first: Terraform, the S3 backend, GitHub OIDC.
 | Infrastructure in Terraform (`cloud-homelab`): ECR repository, Lambda, Lambda function URL (decided 2026-10-19) | ✅ applied 2026-10-19 |
 | A password in front of the hosted app (`auth.py`), so it's never online unprotected; Lambda refuses to start without one | ✅ |
 | Deploy from GitHub Actions via OIDC (no stored AWS keys): `deploy-sandbox` builds, pushes, updates the function and checks it asks for the password | ✅ live 2026-10-19 |
-| Login in the app with Cognito, replacing the password | ⏭️ |
+| Login in the app with Cognito, replacing the password (now planned under "Portfolio" below, for Charlie only) | ⬜ |
+
+## Portfolio: a guest mode employers can try (planned 2026-10-20)
+
+Maplenote becomes one tile on a public portfolio site (see `cloud-homelab`
+ROADMAP, Phase 4). It stays Charlie's own notes app first. Visitors get the
+same editor with no login, and their notes stay in their own browser. See
+DECISIONS.md, 2026-10-20.
+
+| Step | Status |
+|------|--------|
+| Guest mode: opens straight into the editor with no login; notes saved in the browser (IndexedDB) as a new tab kind; a short welcome note on how it's built; never calls the files API | ⏭️ |
+| Version 1 step 6 (polish) done before the site goes public, since visitors only glance | ⬜ |
+| Frontend served as static files from S3 + CloudFront; only signed-in `/api` traffic reaches Lambda | ⬜ |
+| Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
+| Move from sandbox to workloads-prod, alongside the portfolio site | ⬜ |
 
 ## Parking lot
 
@@ -49,6 +64,8 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Light theme / theme toggle
 - Sidebar right-click menu, drag-and-drop to move files
 - Track features and bugs as GitHub Issues once the backlog grows
+- Accounts for other people (open sign-up), only if someone actually wants
+  one; needs a privacy note, per-user storage and abuse limits first
 - Per-file autosave exceptions (e.g. never autosave config files)
 - Split `static/app.js` into smaller modules as it grows
 - Markdown preview: tick checkboxes by clicking them (edits the `[ ]` in the text)
