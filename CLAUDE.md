@@ -72,8 +72,10 @@ appear under Charlie's account).
 - Enforce rules on the server, not just in the UI (e.g. the scratch pad is
   protected in both).
 - Design for future cloud hosting: config via env vars, no assumptions that
-  the server and the user's files share a machine. Nothing goes on the
-  public internet without a login.
+  the server and the user's files share a machine. Nothing that reads or
+  writes server-side files goes on the public internet without a login.
+  The planned guest mode (no login) keeps notes only in the visitor's
+  browser and never calls the files API (see DECISIONS.md, 2026-10-20).
 - Keep it simple and dependency-light. Vendor frontend libraries into
   `static/vendor/`; no CDNs (it must work offline). Bundles are built from
   `vendor-src/` (see its README); rebuild only when upgrading, prefer

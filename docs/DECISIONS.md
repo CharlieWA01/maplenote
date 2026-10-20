@@ -449,3 +449,25 @@ interview stories, which Charlie rehearses out loud, are where the
 explaining-it-yourself practice happens instead.
 **Trade-off:** the journal is now entirely Claude's write-up of the facts,
 with nothing in Charlie's voice; the interview stories carry that load.
+
+## 2026-10-20: A login-free guest mode for the portfolio, with notes kept in the browser
+
+**Decision:** Maplenote will be a tile on Charlie's public portfolio site
+and must work the moment a visitor clicks it, with no login. Guests' notes
+are stored only in their own browser (IndexedDB, which Maplenote already
+uses for drafts), as a new tab kind next to `workspace` and `device`. Guest
+mode never calls the files API. Logging in stays optional and is for
+Charlie only (Cognito, sign-up off); signed in, notes sync to S3 as today.
+**Supersedes:** the ground rule "nothing goes on the public internet without
+a login" (`CLAUDE.md`), now "nothing that reads or writes server-side files
+goes public without a login."
+**Alternatives:** cookies for guest notes (about 4 KB each and sent with
+every request); guest notes stored in S3 (strangers writing into Charlie's
+account: abuse, cost and privacy problems); open sign-up for everyone
+(Charlie would be holding strangers' data; parked until someone wants it);
+a separate demo app (two things to maintain).
+**Why:** Charlie wants the app to be useful to Charlie first, and safe to
+send to an employer who will only glance at it. Keeping guests in the
+browser means they cost nothing and can't reach Charlie's files or AWS.
+**Trade-offs:** a guest's notes live in one browser and vanish if its data
+is cleared. Guest and signed-in modes are two paths to keep tested.
