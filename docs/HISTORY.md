@@ -26,3 +26,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-19 | [#16](https://github.com/CharlieWA01/maplenote/pull/16) | Docs review: Maplenote is hosted on AWS, not only local |
 | 2026-10-19 | [#17](https://github.com/CharlieWA01/maplenote/pull/17) | Drop the "In my own words" journal section |
 | 2026-10-19 | [#18](https://github.com/CharlieWA01/maplenote/pull/18) | Plan the portfolio guest mode |
+| 2026-10-19 | [#19](https://github.com/CharlieWA01/maplenote/pull/19) | Guest mode: notes kept in the visitor's browser, no login |
