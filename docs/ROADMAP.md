@@ -50,9 +50,10 @@ DECISIONS.md, 2026-10-20.
 | Guest mode: opens straight into the editor with no login; notes saved in the browser (IndexedDB) as a new tab kind; a short welcome note on how it's built; never calls the files API | ✅ |
 | The `cloud-homelab` side: SCPs on the Workloads OU, the landing page's CloudFront + S3 + WAF in workloads-prod, and its `portfolio` repo (`cloud-homelab` ROADMAP, Phase 4) | ✅ 2026-10-20 |
 | Version 1 step 6 (polish) done before the site goes public, since visitors only glance | ✅ 2026-10-22 |
-| **Next:** Frontend served as static files from S3 + CloudFront; only signed-in `/api` traffic reaches Lambda (with the move below; Charlie approves each apply) | ⏭️ |
+| App side of the move, ready before any AWS change: every non-GET request carries its body's hash (for OAC), the sign-in form is sent by script so it can too, and the "signed in" hint is set at sign-in (the page will come from S3) | ✅ 2026-10-22 |
+| **Next:** Frontend served as static files from S3 + CloudFront; only `/api`, `/login` and `/logout` reach Lambda; CloudFront adds the security headers (with the move below; Charlie approves each apply) | ⏭️ |
 | Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
-| Move from sandbox to workloads-prod, alongside the portfolio site | ⬜ |
+| Move from sandbox to workloads-prod, alongside the portfolio site. Decided 2026-10-22: prod starts with no notes (nothing copied from sandbox), deploys to prod wait for Charlie's approval in GitHub, Cognito is its own step afterwards, and the sandbox app is removed once prod works | ⬜ |
 
 ## Parking lot
 

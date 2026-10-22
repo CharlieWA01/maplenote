@@ -259,7 +259,7 @@ def test_page_and_scripts_are_open_for_guest_mode(client, password):
     cookie = page.headers["Set-Cookie"]
     assert cookie.startswith(f"{auth.SIGNED_IN_COOKIE}=;") and "Max-Age=0" in cookie
     for path in ("/static/app.js", "/static/style.css", "/static/welcome.md", "/static/changelog.md",
-                 "/static/vendor/codemirror.js"):
+                 "/static/vendor/codemirror.js", "/static/body-hash.js", "/static/login.js"):
         assert client.get(path).status_code == 200, path
     # Faking the hint gets the page, never the files.
     client.set_cookie(auth.SIGNED_IN_COOKIE, "1")
@@ -280,9 +280,12 @@ def sign_in(client, attempt):
 def test_signing_in_sets_a_cookie_that_lets_everything_through(client, password):
     response = sign_in(client, password)
     assert response.status_code == 303 and response.headers["Location"].endswith("/")
-    cookie = response.headers["Set-Cookie"]
+    session, hint = response.headers.getlist("Set-Cookie")
     for flag in ("HttpOnly", "Secure", "SameSite=Lax", "Max-Age=2592000"):
-        assert flag in cookie, flag
+        assert flag in session, flag
+    # The "signed in" hint comes with the sign-in too, not only with the page:
+    # in production the page is a file on S3 that this server never sends.
+    assert hint.startswith(f"{auth.SIGNED_IN_COOKIE}=1;") and "HttpOnly" not in hint
     # The test client keeps the cookie, like a browser. The page now tells
     # its script to start signed in, with a cookie scripts can read.
     page = client.get("/")

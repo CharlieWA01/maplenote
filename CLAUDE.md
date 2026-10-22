@@ -80,7 +80,14 @@ appear under Charlie's account).
   Markdown tabs have an Edit/Preview `mode`; the preview uses markdown-it
   (`static/vendor/markdown-it.js`, global `MD`) with `html: false`.
 - Security headers (Content-Security-Policy etc.) are set in `app.py`;
-  keep scripts and styles same-origin (no inline scripts, no CDNs).
+  keep scripts and styles same-origin (no inline scripts, no CDNs). In
+  workloads-prod the page comes from S3 through CloudFront, so CloudFront's
+  response-headers policy must carry the same headers (`cloud-homelab`).
+- Behind CloudFront (prod) every non-GET request needs an
+  `x-amz-content-sha256` header (OAC): `static/body-hash.js`, used by
+  `api()` in `app.js` and by `static/login.js` (the sign-in form is sent by
+  script for this). The "signed in" hint cookie is set at sign-in as well
+  as with the page, since in prod the server never serves the page.
 
 ## Ground rules
 

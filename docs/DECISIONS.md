@@ -609,3 +609,42 @@ first. **Trade-offs:** signing out with changes you decide to lose really
 loses them (it asks first). Signing out doesn't sign other devices out; only
 changing the password does, until Cognito. The hand-made zip has its own
 test (Python's `zipfile` opens it and checks every checksum).
+
+## 2026-10-22: Getting the app ready for CloudFront with OAC, before any AWS change
+
+**Decision:** the app changes the prod move needs come first, in their own
+PR, tested locally:
+- **Every request but a GET carries `x-amz-content-sha256`,** the SHA-256
+  of its body (of an empty body when there's none), from one small shared
+  script, `static/body-hash.js`. AWS needs it to check CloudFront's
+  signature on a PUT or POST (2026-10-20, "OAC"); sending it on DELETE and
+  empty POSTs too costs nothing and means no request type is left out.
+  Where the browser can't hash (plain-HTTP addresses like
+  `penguin.linux.test`), it's left off: those are never behind CloudFront.
+- **The sign-in form is sent by a script** (`static/login.js`), the same
+  form fields to the same `POST /login`, so it can add the hash. A plain
+  HTML form can't add headers, so through OAC it would have been refused.
+  Without scripts the form still posts by itself (fine locally).
+- **The "signed in" hint cookie is also set at sign-in.** Until now only
+  the page (`/`) set it, and in prod the page is a file on S3 that the
+  server never sends.
+
+Also decided with Charlie for the move itself: prod starts with no notes
+(nothing is copied from sandbox), a deploy to prod waits for Charlie's
+approval in GitHub (a protected environment), Cognito comes as its own step
+afterwards, and the sandbox app is removed once prod works.
+
+**Alternatives:**
+- *Send `/` to Lambda as well:* no change to the cookie, but every visit,
+  guests' included, would run (and bill) the function, which the portfolio
+  design avoids.
+- *A JSON sign-in endpoint:* would also work, but changes the server and its
+  tests for no gain; the form fields are the same either way.
+- *Hash only PUT and POST with a body:* matches the AWS rule exactly, but
+  one more condition to get wrong.
+
+**Why:** these were the gaps found when reading the 2026-10-20 design
+against the code: as designed, signing in would have failed in prod. Doing
+them first, with no AWS involved, means the Terraform step only has to get
+the AWS side right. **Trade-offs:** one more script file loaded on each
+page. **Cost:** $0.
