@@ -48,7 +48,13 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Skipped until prod is set up (the role's variable is the last thing
+    # the runbook's step 4 sets), so merges before then don't fail here.
+    if: vars.AWS_PROD_DEPLOY_ROLE_ARN != ''
     # Waits here for Charlie's approval; the AWS role trusts nothing else.
+    # Create the "production" environment with its reviewer before setting
+    # the variable: GitHub makes a missing environment by itself, with no
+    # reviewer.
     environment:
       name: production
       url: ${{ vars.PROD_URL }}
