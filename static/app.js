@@ -136,12 +136,15 @@ function showStatus(message, isError = false) {
 
 // Call the server and return its JSON reply, turning server errors into exceptions.
 // The error carries the HTTP status and the server's reply (e.g. a conflict's version).
+// Anything but a GET carries its body's hash (an empty body's, if none), which
+// CloudFront needs in production (see static/body-hash.js).
 async function api(method, url, body) {
-  const options = { method };
+  const options = { method, headers: {} };
   if (body !== undefined) {
-    options.headers = { "Content-Type": "application/json" };
+    options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
   }
+  if (method !== "GET") Object.assign(options.headers, await bodyHashHeaders(options.body ?? ""));
   const response = await fetch(url, options);
   // Signed out (only happens when hosted with a password): go and sign in again.
   // Dropping the hint cookie means coming back without signing in is guest mode.

@@ -4,11 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sign in · Maplenote</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/body-hash.js" defer></script>
+  <script src="/static/login.js" defer></script>
 </head>
 <body class="login-body">
-  <!-- Shown only when Maplenote is hosted with a password (see auth.py). A
-       plain form, no script: the server checks the password and sets a cookie. -->
+  <!-- Shown only when Maplenote is hosted with a password (see auth.py). The
+       server checks the password and sets a cookie. login.js sends the form
+       (adding the hash CloudFront needs); without scripts it posts by itself. -->
   <form class="login" method="post" action="/login">
     <h1 class="brand">Maplenote</h1>
     <label for="password">Password</label>

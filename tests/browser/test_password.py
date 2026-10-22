@@ -3,6 +3,8 @@
 Chromium signs in on the sign-in page the way a person does, and must then
 keep sending its session cookie with every script, style and API call.
 """
+import hashlib
+
 import pytest
 from playwright.sync_api import expect
 from werkzeug.security import generate_password_hash
@@ -48,6 +50,30 @@ def test_sign_in_then_edit_and_save(page, workspace):
     wait_for_file(workspace / "scratch.txt", "typed behind a password")
     # Still signed in after a reload (the cookie is kept).
     open_app(page)
+
+
+def test_every_request_with_a_body_carries_its_hash(page, workspace):
+    """Behind CloudFront in production, AWS refuses a PUT or POST to the function
+    unless x-amz-content-sha256 matches its body (origin access control). So
+    signing in, saving, creating, renaming and deleting must all send it."""
+    sent = []
+    page.on("request", lambda request: request.method != "GET" and sent.append(request))
+    sign_in(page, PASSWORD)
+    expect(page.locator(".tab")).not_to_have_count(0)
+    type_at_end(page, "hashed")
+    wait_for_file(workspace / "scratch.txt", "hashed")
+    page.once("dialog", lambda dialog: dialog.accept("new.txt"))
+    page.click("#new-button")
+    expect(page.locator(".tab.active .tab-name")).to_have_text("new.txt")
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.click("#delete-button")
+    expect(page.locator('.file-item[title="new.txt"]')).to_have_count(0)
+
+    methods = sorted({(r.method, r.url.split("?")[0].rsplit("/", 2)[-1]) for r in sent})
+    assert methods == [("DELETE", "file"), ("POST", "file"), ("POST", "login"), ("PUT", "file")]
+    for request in sent:
+        body = request.post_data_buffer or b""
+        assert request.headers.get("x-amz-content-sha256") == hashlib.sha256(body).hexdigest(), request.url
 
 
 def test_wrong_password_stays_on_the_sign_in_page(page):

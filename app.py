@@ -124,6 +124,9 @@ def log_in():
         httponly=True,    # scripts on the page can't read it
         samesite="Lax",   # other sites can't make the browser send it with their requests
     )
+    # Set here as well as with the page: in production the page comes straight
+    # from S3 through CloudFront, so this server never serves it.
+    set_signed_in_hint(response)
     return response
 
 
@@ -199,17 +202,21 @@ def storage_error(error):
 
 # ------------------------------------------------------------------------ pages
 
+def set_signed_in_hint(response):
+    """Only a hint for the page, never a key: the API checks the real session
+    itself. So scripts may read it (no HttpOnly), and it isn't limited to
+    HTTPS (Secure), which Chrome would otherwise ignore on penguin.linux.test,
+    the Chromebook's plain-HTTP address."""
+    response.set_cookie(auth.SIGNED_IN_COOKIE, "1", max_age=auth.SESSION_SECONDS, samesite="Lax")
+
+
 @app.get("/")
 def index():
     """The page, plus a cookie telling its script whether to start signed in
     (the real notes, through the API) or in guest mode (notes in the browser)."""
     response = send_from_directory(app.static_folder, "index.html")
     if is_signed_in():
-        # Only a hint for the page, never a key: the API checks the real
-        # session itself. So scripts may read it (no HttpOnly), and it isn't
-        # limited to HTTPS (Secure), which Chrome would otherwise ignore on
-        # penguin.linux.test, the Chromebook's plain-HTTP address.
-        response.set_cookie(auth.SIGNED_IN_COOKIE, "1", max_age=auth.SESSION_SECONDS, samesite="Lax")
+        set_signed_in_hint(response)
     else:
         response.delete_cookie(auth.SIGNED_IN_COOKIE, samesite="Lax")
     return response
