@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Maplenote</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
     <button id="open-button" type="button" title="Open a file from your device">Open…</button>
     <!-- Fallback for browsers that can't save back to the original file. -->
     <input id="file-input" type="file" multiple hidden accept=".txt,.md,.log,text/plain,text/markdown">
-    <button id="save-button" type="button" disabled>Save</button>
+    <button id="save-button" type="button" disabled title="Save now (Ctrl+S)">Save</button>
     <button id="rename-button" type="button" disabled>Rename</button>
     <button id="delete-button" type="button" disabled>Delete</button>
     <button id="find-button" type="button" disabled title="Find and replace (Ctrl+F)">Find</button>
@@ -21,8 +22,11 @@
     <!-- Guest mode only (see app.js): where a guest's notes are kept, and the way in for Charlie. -->
     <span id="guest-bar" class="guest-bar" hidden>
       <span title="Your notes are saved in this browser only. Nothing is sent to a server.">Guest · notes stay in this browser</span>
+      <button id="download-notes-button" type="button" title="Download all your notes as a .zip file, to keep them">Download all</button>
       <a href="/login">Sign in</a>
     </span>
+    <!-- Hosted only (there's a password): signs out and clears this browser's copies of your notes. -->
+    <button id="sign-out-button" class="sign-out" type="button" hidden title="Sign out, and remove this browser's copies of your unsaved notes and open tabs">Sign out</button>
     <!-- A setting, not an action, so it sits apart from the buttons at the far right. -->
     <label class="toggle" title="Save automatically a moment after you stop typing">
       <input id="autosave-toggle" type="checkbox"> Autosave
@@ -37,8 +41,8 @@
         <div id="tabs" class="tabs" role="tablist"></div>
         <!-- Shown only for Markdown (.md) tabs. -->
         <div id="view-switch" class="view-switch" role="group" aria-label="Markdown view" hidden>
-          <button id="edit-mode-button" type="button" aria-pressed="true">Edit</button>
-          <button id="preview-mode-button" type="button" aria-pressed="false">Preview</button>
+          <button id="edit-mode-button" type="button" aria-pressed="true" title="Edit (Ctrl+E switches)">Edit</button>
+          <button id="preview-mode-button" type="button" aria-pressed="false" title="Preview (Ctrl+E switches)">Preview</button>
         </div>
       </div>
       <!-- Conflict and crash-recovery messages for the active tab. -->

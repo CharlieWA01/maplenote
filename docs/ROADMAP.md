@@ -12,8 +12,8 @@ Status: ✅ done · 🚧 in progress · ⏭️ next · ⬜ planned
 | 3 | Autosave (~1 s after typing stops), crash recovery (drafts kept in the browser), edit-conflict detection; autosave can be switched off | ✅ |
 | 4 | Switch to CodeMirror: undo/redo that survives tab switches, find & replace, line numbers, word-wrap toggle, word/line count | ✅ |
 | 5 | Markdown preview: Edit/Preview toggle, `.md` files only | ✅ |
-| 6 | Polish: theme details, README | ⏭️ |
-| 6a | **Version number and changelog in the app:** an About box from the status bar shows the version, the build's commit and the changelog (`static/changelog.md`); finishing Version 1 makes it 1.0.0 | ✅ |
+| 6 | Polish: a sign-out button, keyboard shortcuts (Ctrl+S, Alt+W, Ctrl+E), a guest's "Download all" (.zip), an icon, README | ✅ 2026-10-22 |
+| 6a | **Version number and changelog in the app:** an About box from the status bar shows the version, the build's commit and the changelog (`static/changelog.md`); finishing Version 1 made it 1.0.0 (2026-10-22) | ✅ |
 
 ## Cloud-ready (local work, no AWS needed)
 
@@ -48,9 +48,9 @@ DECISIONS.md, 2026-10-20.
 | Step | Status |
 |------|--------|
 | Guest mode: opens straight into the editor with no login; notes saved in the browser (IndexedDB) as a new tab kind; a short welcome note on how it's built; never calls the files API | ✅ |
-| **Next:** the `cloud-homelab` side: SCPs on the Workloads OU, then the portfolio site (CloudFront + S3) in workloads-prod. No fixed date; it starts when Charlie is ready (`cloud-homelab` ROADMAP, Phase 4) | ⏭️ |
-| Version 1 step 6 (polish) done before the site goes public, since visitors only glance | ⬜ |
-| Frontend served as static files from S3 + CloudFront; only signed-in `/api` traffic reaches Lambda | ⬜ |
+| The `cloud-homelab` side: SCPs on the Workloads OU, the landing page's CloudFront + S3 + WAF in workloads-prod, and its `portfolio` repo (`cloud-homelab` ROADMAP, Phase 4) | ✅ 2026-10-20 |
+| Version 1 step 6 (polish) done before the site goes public, since visitors only glance | ✅ 2026-10-22 |
+| **Next:** Frontend served as static files from S3 + CloudFront; only signed-in `/api` traffic reaches Lambda (with the move below; Charlie approves each apply) | ⏭️ |
 | Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
 | Move from sandbox to workloads-prod, alongside the portfolio site | ⬜ |
 
@@ -62,7 +62,11 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Log viewer mode: open the end of a big file, refresh to follow new lines
 - Extra server-side workspace folders (the "Option B" alternative to step 2b)
 - Keep `~/maplenote-files` under git, for a version history of notes
-- More keyboard shortcuts (Ctrl+S, Ctrl+W, Ctrl+Tab, …). CodeMirror's editing ones already work.
+- More keyboard shortcuts: next/previous tab (Alt+PageDown/PageUp?) and
+  New file. Chrome never gives a page Ctrl+W, Ctrl+T, Ctrl+N or Ctrl+Tab,
+  which is why closing a tab is Alt+W (see DECISIONS.md, 2026-10-22).
+- Download all notes as a .zip for signed-in use too (today guests only);
+  the S3 bucket is versioned, so this would be a convenience, not a backup
 - Light theme / theme toggle
 - Sidebar right-click menu, drag-and-drop to move files
 - Track features and bugs as GitHub Issues once the backlog grows
@@ -73,14 +77,12 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - Markdown preview: tick checkboxes by clicking them (edits the `[ ]` in the text)
 - Markdown preview: links to other notes (`[x](ideas.md)`) open them in a tab
 - Markdown preview: show images stored in the workspace
-- Ctrl+E to switch between Edit and Preview (as in Obsidian)
 - Live sync between devices (push changes instead of detecting conflicts on
   save); needs a long-running server or API Gateway WebSockets
 - Run the same Docker image on the Proxmox homelab (`docker run` line in the
   `Dockerfile`; already works on any Linux machine with Docker)
 - Roll back a deploy from the Actions tab (point the function at an older
   commit's image; today it's one `aws lambda update-function-code` command)
-- Guest mode: download all notes as a .zip, so a guest can keep them
 - Tag each version in git (`v0.11.0`) and make a GitHub release from its
   changelog entry, by a workflow after merge
 - "What's new" hint: mark the version in the status bar when it changed
@@ -107,14 +109,18 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 ## Known limitations
 
 - A guest's notes live in one browser: another browser or device can't see
-  them, and clearing the site's data deletes them. There's no export yet.
+  them, and clearing the site's data deletes them. "Download all" saves a
+  .zip, but there's no way to load one back in yet.
 - Until the frontend moves to S3 + CloudFront, the sandbox Lambda serves the
   page to anyone with its address (guest mode). Only the page: the files API
   still needs the password. Each visit is a few small requests to Lambda.
 
 - The hosted app has one shared password until Cognito login replaces it.
-  Signing out is the address `/logout` (no button yet). Sessions last 30
-  days; changing the password signs every device out.
+  Sessions last 30 days; changing the password signs every device out.
+  Signing out only clears the browser it's clicked in: other devices stay
+  signed in until the 30 days are up or the password changes.
+- The keyboard shortcuts can't be changed. Closing a tab is Alt+W, not
+  Ctrl+W, because Chrome keeps Ctrl+W for closing its own tab.
 - After a while idle, the first request on Lambda takes a second or two
   (a "cold start").
 - The hosted app has no request limit of its own and no lockout after wrong

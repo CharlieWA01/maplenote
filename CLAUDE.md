@@ -64,7 +64,10 @@ appear under Charlie's account).
   `workspace` (via the server API), `guest` (a guest's note), `device`
   (opened with "Open…", read and saved by the
   browser directly; the server never sees it) or `copy` (fallback).
-  A guest's first visit opens `static/welcome.md`.
+  A guest's first visit opens `static/welcome.md`; "Download all" zips a
+  guest's notes in the page (`makeZip()`, no library). When hosted, "Sign
+  out" saves, then clears this browser's drafts, handles and tab list.
+  Shortcuts (Ctrl+S, Alt+W, Ctrl+E) are one keydown listener in `app.js`.
   The version is the first heading of `static/changelog.md`; the About box
   (the version in the status bar) shows it, the changelog, and the build
   record `static/build.json` that the `Dockerfile` writes into the image

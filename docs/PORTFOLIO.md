@@ -44,7 +44,8 @@ also wanted a real project to learn git, GitHub and software design on.
   the server's rules repeated there (conflict detection across browser tabs,
   path checks, size limit). Guests never reach the files API, so trying the
   app costs nothing and can't touch real files.
-- **Versioned releases:** semantic version and changelog shown in the app,
+- **Versioned releases:** semantic version and changelog shown in the app
+  (1.0.0 on 2026-10-22, when Version 1 of the roadmap was finished),
   with the deployed commit baked into the image; each deploy verifies the
   live URL serves the commit it just shipped.
 - **Checked on real AWS:** after each merge that touches storage, GitHub

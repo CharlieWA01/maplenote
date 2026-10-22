@@ -2,7 +2,7 @@
 
 Maplenote is a small text editor that runs in the browser. I built it for myself, for notes, logs and config files, and I use it every day. You're trying it as a guest, so go ahead and write something.
 
-**Your notes stay in this browser.** They're saved here as you type and never sent to a server. Nobody else can see them, and clearing this site's data deletes them.
+**Your notes stay in this browser.** They're saved here as you type and never sent to a server. Nobody else can see them, and clearing this site's data deletes them, so **Download all** (at the top) saves a copy as a .zip.
 
 ## Things to try
 
@@ -10,7 +10,7 @@ Maplenote is a small text editor that runs in the browser. I built it for myself
 - Make a note with **New file**. Names like `ideas/todo.md` make folders in the sidebar.
 - Write in a second browser tab, then come back to this one: Maplenote spots the change and won't overwrite it.
 - **Open…** edits a text file on your own computer. It stays there: the browser saves it straight back.
-- **Find** (Ctrl+F) has find and replace.
+- **Find** (Ctrl+F) has find and replace. Ctrl+S saves, Alt+W closes a tab and Ctrl+E switches Edit and Preview.
 
 ## How it's built
 

@@ -88,7 +88,12 @@ button:disabled { opacity: 0.5; cursor: default; }
   color: var(--muted);
   white-space: nowrap;
 }
+.guest-bar { align-items: center; }
 .guest-bar a { color: var(--accent); }
+.guest-bar button { padding: 2px 8px; }
+
+/* Hosted only: sits where a guest's bar would, set apart from the file buttons. */
+.sign-out { flex-shrink: 0; }
 
 /* ---- Sidebar + editor area ---- */
 

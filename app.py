@@ -10,7 +10,7 @@ storage.py).
 
 API
   GET    /api/files               -> {"files": ["notes.md", ...], "scratch": "scratch.txt",
-                                      "max_file_bytes": 10485760}
+                                      "max_file_bytes": 10485760, "can_sign_out": false}
   GET    /api/file?path=notes.md  -> {"path": "notes.md", "content": "...", "version": "3f9a…"}
   GET    /api/stat?path=notes.md  -> {"path": "notes.md", "version": "3f9a…"}
   PUT    /api/file?path=notes.md  with body {"content": "...", "base_version": "3f9a…"}
@@ -72,9 +72,9 @@ def host_is_allowed(hostname):
 
 
 # Reachable without signing in: the page, its scripts and styles (guest mode
-# runs entirely in the browser), and the sign-in page. None of them read or
+# runs entirely in the browser), and signing in and out. None of them read or
 # write files. Everything else, the files API above all, needs signing in.
-OPEN_PATHS = {"/", "/login"}
+OPEN_PATHS = {"/", "/login", "/logout"}
 OPEN_PREFIX = "/static/"
 
 
@@ -231,6 +231,9 @@ def list_files():
         scratch=SCRATCH,
         # The page applies the same limit to files opened from the user's device.
         max_file_bytes=config.MAX_FILE_BYTES,
+        # A password is set (hosted), so the page offers a "Sign out" button.
+        # Locally there's no password, so nothing to sign out of.
+        can_sign_out=bool(config.PASSWORD_HASH),
     )
 
 
