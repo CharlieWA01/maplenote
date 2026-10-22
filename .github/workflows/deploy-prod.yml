@@ -1,0 +1,141 @@
+# Deploys Maplenote to workloads-prod, after Charlie approves it: builds and
+# pushes the image, points the Lambda function at it, uploads the page's
+# files to their S3 bucket and clears CloudFront's cache. Then checks, from
+# outside, that the app asks for its password, runs this commit, and can't
+# be reached around CloudFront.
+#
+# The approval: the job runs in the "production" GitHub environment, which
+# has Charlie as its required reviewer, and the AWS role trusts only jobs in
+# that environment (cloud-homelab DECISIONS.md, 2026-10-22). Each merge
+# that changes the app starts a run that waits on the Actions tab for
+# "Review deployments". deploy-sandbox has already shipped the same commit
+# to sandbox, so it can be tried there first.
+#
+# Setup and first run: cloud-homelab docs/runbooks/maplenote-prod.md.
+name: deploy-prod
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - app.py
+      - auth.py
+      - config.py
+      - storage.py
+      - static/**
+      - requirements.txt
+      - requirements-image.txt
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/deploy-prod.yml
+
+permissions:
+  id-token: write   # lets the job ask GitHub for a sign-in token for AWS
+  contents: read
+
+# One prod deploy at a time, never cancelled halfway. A newer run waits
+# behind an older one (approve or reject the older one first).
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY: cwa-maplenote
+  FUNCTION_NAME: cwa-maplenote
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Waits here for Charlie's approval; the AWS role trusts nothing else.
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Sign in to AWS (prod)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_PROD_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - name: Sign in to the image registry (ECR)
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          echo "::add-mask::$account"
+          registry="$account.dkr.ecr.$AWS_REGION.amazonaws.com"
+          echo "IMAGE=$registry/$ECR_REPOSITORY:$GITHUB_SHA" >> "$GITHUB_ENV"
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$registry"
+
+      # Same recipe as deploy-sandbox. The build time is kept for the page's
+      # build record too, so the image and the page say the same.
+      - name: Build and push the image
+        run: |
+          built="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          echo "BUILT=$built" >> "$GITHUB_ENV"
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" > /dev/null 2>&1; then
+            echo "This commit's image is already in ECR; not rebuilding."
+          else
+            docker build --provenance=false --platform linux/amd64 \
+              --build-arg MAPLENOTE_COMMIT="$GITHUB_SHA" \
+              --build-arg MAPLENOTE_BUILT="$built" \
+              -t "$IMAGE" .
+            docker push "$IMAGE"
+          fi
+
+      # The first run comes before Terraform has created the function (it
+      # needs an image first): stop here successfully, as in sandbox.
+      - name: Point the Lambda function at the new image
+        id: update
+        run: |
+          if ! error=$(aws lambda get-function --function-name "$FUNCTION_NAME" 2>&1 > /dev/null); then
+            if grep -q ResourceNotFoundException <<< "$error"; then
+              echo "::notice::Image pushed. The function doesn't exist yet: do the full apply in cloud-homelab's docs/runbooks/maplenote-prod.md, then run this workflow again."
+              echo "updated=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "$error"
+            exit 1
+          fi
+          aws lambda update-function-code --function-name "$FUNCTION_NAME" --image-uri "$IMAGE" --query LastUpdateStatus --output text
+          aws lambda wait function-updated-v2 --function-name "$FUNCTION_NAME"
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+
+      # The page as CloudFront serves it: index.html at the top, static/
+      # beneath it, plus the build record the image has. "no-cache" makes
+      # browsers ask each time whether a file changed (no file name changes
+      # between versions, so a stale app.js could otherwise meet a new
+      # index.html). --delete removes files the new version no longer has.
+      - name: Upload the page's files
+        if: steps.update.outputs.updated == 'true'
+        env:
+          BUCKET: ${{ vars.PROD_WEB_BUCKET }}
+        run: |
+          printf '{"commit": "%s", "built": "%s"}\n' "$GITHUB_SHA" "$BUILT" > static/build.json
+          aws s3 sync static/ "s3://$BUCKET/static/" --delete --cache-control no-cache --only-show-errors
+          aws s3 cp static/index.html "s3://$BUCKET/index.html" --cache-control no-cache --only-show-errors
+          ids=$(aws cloudfront create-invalidation --distribution-id "${{ vars.PROD_DISTRIBUTION_ID }}" --paths '/*' --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "${{ vars.PROD_DISTRIBUTION_ID }}" --id "$ids"
+
+      # As a stranger sees it: through CloudFront the files API must ask for
+      # the password (401) and the page must be this commit; around
+      # CloudFront, straight at the function, AWS must refuse (403).
+      - name: Check it asks for its password, runs this commit and can't be reached around CloudFront
+        if: steps.update.outputs.updated == 'true'
+        env:
+          URL: ${{ vars.PROD_URL }}
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 --retry 3 --retry-all-errors "$URL/api/files")
+          echo "Through CloudFront, without a password, /api/files answered $status"
+          test "$status" = 401
+          build=$(curl -s --max-time 30 --retry 3 --retry-all-errors "$URL/static/build.json")
+          echo "Build record: $build"
+          grep -q "\"commit\": \"$GITHUB_SHA\"" <<< "$build"
+          direct=$(aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --query FunctionUrl --output text)
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${direct}api/files")
+          echo "Straight at the function URL, /api/files answered $status"
+          test "$status" = 403
+          echo "Maplenote is deployed to prod: $URL" >> "$GITHUB_STEP_SUMMARY"

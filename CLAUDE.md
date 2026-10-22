@@ -54,7 +54,9 @@ appear under Charlie's account).
 - `Dockerfile`: the one image for Lambda and anywhere else (gunicorn, one
   worker, plus AWS's Lambda Web Adapter). The `deploy-sandbox` workflow
   ships it; the AWS resources are Terraform in the `cloud-homelab` repo
-  (`terraform/sandbox/maplenote-app.tf`).
+  (`terraform/sandbox/maplenote-app.tf`). `deploy-prod` ships the same
+  image plus the page's files to workloads-prod (`terraform/prod/`), after
+  Charlie approves it in the `production` GitHub environment.
 - `static/`: plain HTML/CSS/JS, no build step. `app.js` holds tabs, sidebar
   and file actions. Two modes: signed in (or local), and **guest** (not
   signed in: notes in the browser's IndexedDB, the API never called; the
