@@ -71,6 +71,18 @@ jobs:
       # Running the workflow again for the same commit reuses its image.
       # --provenance=false keeps the image in a format Lambda accepts (no
       # extra build-record entries next to it).
+      # The Lambda Web Adapter in the Dockerfile comes from AWS's public
+      # registry. Anonymous downloads share the runner's IP address's monthly
+      # allowance with everyone else's jobs and sometimes get "429 Too Many
+      # Requests"; signed in, they count against this AWS account's own free
+      # 5 TB a month instead (docs/DECISIONS.md, 2026-10-22). The public
+      # registry's sign-in lives in us-east-1. If signing in fails (e.g. the
+      # role's permissions aren't applied yet), carry on anonymously.
+      - name: Sign in to AWS's public image registry
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws \
+            || echo "::warning::Couldn't sign in to public.ecr.aws; downloading the Lambda adapter anonymously."
+
       - name: Build and push the image
         run: |
           if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$GITHUB_SHA" > /dev/null 2>&1; then

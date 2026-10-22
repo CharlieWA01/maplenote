@@ -1,4 +1,4 @@
-# 2026-10-22: Getting the app ready for CloudFront (prod move, step A)
+# 2026-10-22: Getting the app ready for CloudFront, and a prod deploy (prod move, steps A and C)
 
 ## Goal
 Charlie asked for the next step after 1.0.0: moving Maplenote to
@@ -22,6 +22,17 @@ Before writing Terraform, check that design against the code.
   new `static/login.js`, which sends the sign-in form itself. `app.py` sets
   the hint cookie at sign-in as well as with the page. Nothing changes for
   a user, so no new version in the changelog.
+- **Step C, `deploy-prod`** (`.github/workflows/deploy-prod.yml`): on each
+  merge that changes the app (or by hand), a job in the `production`
+  GitHub environment waits for Charlie's approval, then builds and pushes
+  the image, updates the prod function, uploads `index.html` and `static/`
+  (with this commit's `build.json`) to the page bucket with
+  `Cache-Control: no-cache`, clears CloudFront's cache and waits for it.
+  It then checks from outside: `/api/files` through CloudFront answers 401,
+  the build record names this commit, and the function URL called directly
+  answers 403 (OAC holds). The Terraform for all of this is
+  `cloud-homelab#23`; setup steps are in its
+  `docs/runbooks/maplenote-prod.md`.
 
 ## Problems and fixes
 - None so far. Plain-HTTP addresses (the Chromebook's `penguin.linux.test`)
@@ -36,6 +47,9 @@ Before writing Terraform, check that design against the code.
   with the sign-in.
 - Proved they fail: removing the hash from `api()`, removing it from
   `login.js`, and not setting the hint at sign-in each failed a test.
+
+- `deploy-prod.yml` parses as YAML; it can't run until Charlie has applied
+  `cloud-homelab#23` and set up the environment and variables.
 
 ## Impact
 No visible change, no cost. The Terraform step (B) can now assume the app
