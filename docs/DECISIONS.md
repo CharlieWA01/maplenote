@@ -564,3 +564,48 @@ living project, and Charlie can tell at a glance which build is live (and
 CI proves each deploy swapped the code). **Trade-offs:** one more thing to
 write per PR (a test catches a malformed or out-of-order entry, but not a
 forgotten one). The commit hash is public to anyone who opens the page.
+
+## 2026-10-22: Version 1 polish: what "sign out" clears, Alt+W, and a hand-made .zip
+
+**Decision:** finishing Version 1 (step 6, now 1.0.0) added four things, with
+these choices inside them.
+- **Sign out clears this browser, not just the session.** The button only
+  shows when there's a password (`/api/files` now says `can_sign_out`).
+  It saves every open tab first; anything it can't save (a conflict, a
+  "copy" tab) is named in a "Sign out anyway?" question. Then it removes
+  the signed-in drafts, device-file handles and the list of open tabs from
+  the browser, and goes to `/logout`. A guest's notes and drafts are left
+  alone. `/logout` is now open to anyone, so the button works even after
+  the 30-day session has run out (it used to answer 401 then); it only
+  deletes cookies.
+- **Close a tab with Alt+W.** Chrome never hands Ctrl+W, Ctrl+T, Ctrl+N or
+  Ctrl+Tab to a web page (they belong to the browser), so Ctrl+W can't be
+  done. Alt+W is close to it and free in Chrome and ChromeOS. Ctrl+S
+  (save) and Ctrl+E (Edit/Preview, as in Obsidian) can be taken over, and
+  are. One `keydown` listener on the document, in the capture phase, so
+  the editor can't swallow them; they do nothing while a dialog is open
+  (except that Ctrl+S never opens the browser's "Save page as").
+- **Guests' "Download all" builds the .zip in the page,** about 60 lines
+  (`makeZip()` and `crc32()` in `app.js`), with no compression, since notes
+  are small. Unsaved edits are saved first so they're included.
+
+**Alternatives:**
+- *Sign out that only ends the session (just a link to `/logout`):* simpler,
+  but on a shared or borrowed computer the drafts (the text of unsaved
+  edits) and the names of your open notes stay in that browser for the next
+  person. That's the case a sign-out button is for.
+- *Clear the whole browser database on sign out:* would also delete a
+  guest's drafts on the same computer, which aren't Charlie's to delete.
+- *Ctrl+Shift+W or Ctrl+Alt+W:* Ctrl+Shift+W closes the whole Chrome window,
+  and Ctrl+Alt combinations clash with ChromeOS shortcuts.
+- *A zip library (JSZip, fflate) in `static/vendor/`:* well tested, but
+  another bundle to build and upgrade for something this small. If
+  compression or reading zips (an "import") is ever wanted, switch to one.
+- *One download per note:* Chrome asks to allow "multiple downloads", and
+  folders are lost.
+
+**Why:** these were the rough edges a visitor or daily user would notice
+first. **Trade-offs:** signing out with changes you decide to lose really
+loses them (it asks first). Signing out doesn't sign other devices out; only
+changing the password does, until Cognito. The hand-made zip has its own
+test (Python's `zipfile` opens it and checks every checksum).

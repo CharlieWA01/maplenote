@@ -6,6 +6,19 @@ own version from the first entry below, so this is the one place the version
 number lives. How the numbers work: see `docs/DECISIONS.md`, 2026-10-20,
 "A version number and changelog inside the app".
 
+## 1.0.0 · 2026-10-22
+Version 1 is finished: everything planned for a simple, Notepad++-style
+editor is in.
+- **Sign out button** (hosted only). Signing out saves your work first, then
+  removes this browser's unsaved drafts and list of open tabs, so the next
+  person at a shared computer finds none of your notes.
+- **Keyboard shortcuts:** Ctrl+S saves, Alt+W closes the tab (Chrome keeps
+  Ctrl+W for itself), Ctrl+E switches a Markdown note between Edit and
+  Preview.
+- **Guests can keep their notes:** "Download all" saves every note as one
+  .zip file, folders included.
+- **An icon** in the browser tab.
+
 ## 0.11.0 · 2026-10-20
 - **About box:** the version number at the bottom right opens this list,
   along with the build the app is running (the commit it was built from,

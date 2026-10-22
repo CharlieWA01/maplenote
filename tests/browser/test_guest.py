@@ -4,6 +4,9 @@ The app runs with a password (as on AWS) and the browser never signs in. A
 guest must get a working editor, and must never reach the files API, so
 every test also checks that no request went to /api/.
 """
+import re
+import zipfile
+
 import pytest
 from playwright.sync_api import expect
 from werkzeug.security import generate_password_hash
@@ -11,7 +14,7 @@ from werkzeug.security import generate_password_hash
 import auth
 import config
 
-from .helpers import editor_text, tab, type_at_end
+from .helpers import editor_text, set_autosave, tab, type_at_end
 
 
 @pytest.fixture(autouse=True)
@@ -138,6 +141,32 @@ def test_a_change_in_another_browser_tab_is_never_overwritten(context, api_calls
     assert editor_text(first) == "from the second tab"
     open_note(first, "scratch (conflict).txt")
     assert editor_text(first) == "from the first tab"
+
+
+def test_download_all_notes_as_a_zip(page, api_calls):
+    """A guest can keep their notes: one .zip, folders and unsaved edits included."""
+    open_as_guest(page)
+    page.once("dialog", lambda dialog: dialog.accept("ideas/café.md"))
+    page.click("#new-button")
+    expect(page.locator(".tab.active .tab-name")).to_have_text("café.md")
+    set_autosave(page, False)
+    type_at_end(page, "not saved yet ✓")
+
+    with page.expect_download() as download:
+        page.click("#download-notes-button")
+
+    assert re.fullmatch(r"maplenote-notes-\d{4}-\d{2}-\d{2}\.zip", download.value.suggested_filename)
+    with zipfile.ZipFile(download.value.path()) as archive:
+        assert archive.testzip() is None  # every checksum is right
+        assert sorted(archive.namelist()) == ["Welcome.md", "ideas/café.md", "scratch.txt"]
+        assert archive.read("ideas/café.md").decode() == "not saved yet ✓"
+        assert archive.read("Welcome.md").decode().startswith("# Welcome to Maplenote")
+    expect(page.locator("#status")).to_have_text("Downloaded 3 notes as a .zip")
+
+
+def test_guests_are_not_offered_sign_out(page, api_calls):
+    open_as_guest(page)
+    expect(page.locator("#sign-out-button")).to_be_hidden()
 
 
 def test_signed_in_mode_is_unchanged_locally(page, monkeypatch, workspace):

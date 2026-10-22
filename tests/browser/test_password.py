@@ -10,9 +10,22 @@ from werkzeug.security import generate_password_hash
 import auth
 import config
 
-from .helpers import open_app, type_at_end, wait_for_file
+from .helpers import open_app, set_autosave, type_at_end, wait_for_file
 
 PASSWORD = "correct horse battery"
+
+# What's left in the browser's "maplenote" database (drafts, device file handles).
+STORE_KEYS = """async (name) => {
+    const db = await new Promise((resolve) => {
+        const request = indexedDB.open("maplenote", 2);
+        request.onsuccess = () => resolve(request.result);
+    });
+    return new Promise((resolve) => {
+        const request = db.transaction(name).objectStore(name).getAllKeys();
+        request.onsuccess = () => resolve(request.result);
+    });
+}"""
+DRAFT_KEYS = f"() => ({STORE_KEYS})('drafts')"
 
 
 @pytest.fixture(autouse=True)
@@ -51,6 +64,59 @@ def test_signing_out_returns_to_the_sign_in_page(page):
     # Signed out, the page opens in guest mode.
     page.goto("/")
     expect(page.locator("#guest-bar")).to_be_visible()
+
+
+def test_sign_out_button_saves_then_leaves_nothing_behind(page, workspace):
+    """Signing out saves your work, then removes this browser's drafts and list of
+    open tabs, so the next person at a shared computer finds none of your notes."""
+    (workspace / "notes.txt").write_text("")
+    sign_in(page, PASSWORD)
+    expect(page.locator("#sign-out-button")).to_be_visible()
+    page.click('.file-item[title="notes.txt"]')
+    set_autosave(page, False)
+    type_at_end(page, "saved on the way out")
+    page.evaluate("storeDraft(activeTab)")  # as if a draft had been kept
+
+    page.click("#sign-out-button")
+
+    expect(page.locator("#password")).to_be_visible()
+    assert (workspace / "notes.txt").read_text() == "saved on the way out"
+    assert page.evaluate(DRAFT_KEYS) == []
+    assert page.evaluate(STORE_KEYS, "handles") == []
+    assert page.evaluate("localStorage.getItem('maplenote.session')") is None
+
+
+def test_sign_out_asks_before_losing_changes_it_cannot_save(page, workspace):
+    (workspace / "notes.txt").write_text("")
+    sign_in(page, PASSWORD)
+    page.click('.file-item[title="notes.txt"]')
+    set_autosave(page, False)
+    type_at_end(page, "mine")
+    (workspace / "notes.txt").write_text("changed elsewhere")  # so the save is refused
+
+    messages = []
+    page.once("dialog", lambda dialog: (messages.append(dialog.message), dialog.dismiss()))
+    page.click("#sign-out-button")
+
+    expect(page.locator("#banner")).to_contain_text("was changed somewhere else")
+    assert "notes.txt" in messages[0]
+    expect(page.locator(".tab")).to_have_count(2)  # still signed in, nothing lost
+
+
+def test_sign_out_anyway_removes_the_draft_of_the_lost_changes(page, workspace):
+    (workspace / "notes.txt").write_text("")
+    sign_in(page, PASSWORD)
+    page.click('.file-item[title="notes.txt"]')
+    set_autosave(page, False)
+    type_at_end(page, "mine")
+    page.evaluate("storeDraft(activeTab)")  # as if a draft had been kept
+    (workspace / "notes.txt").write_text("changed elsewhere")
+
+    page.once("dialog", lambda dialog: dialog.accept())  # "Sign out anyway?"
+    page.click("#sign-out-button")
+
+    expect(page.locator("#password")).to_be_visible()
+    assert page.evaluate(DRAFT_KEYS) == []  # the unsaved draft went too
 
 
 def test_page_goes_to_sign_in_when_the_session_ends(page, context):

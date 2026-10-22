@@ -223,8 +223,16 @@ def test_without_a_password_setting_nothing_is_asked(client):
     assert client.get("/api/files").status_code == 200
 
 
+def test_sign_out_is_offered_only_when_there_is_a_password(client, monkeypatch):
+    """The page shows "Sign out" only when hosted; locally there's nothing to sign out of."""
+    assert client.get("/api/files").get_json()["can_sign_out"] is False
+    monkeypatch.setattr(config, "PASSWORD_HASH", generate_password_hash("correct horse"))
+    monkeypatch.setattr(auth, "_last_accepted", None)
+    assert client.get("/api/files", headers=basic("correct horse")).get_json()["can_sign_out"] is True
+
+
 def test_password_is_required_for_the_files_api(client, password):
-    for path in ("/api/files", url("scratch.txt"), "/api/stat?path=scratch.txt", "/logout", "/nowhere"):
+    for path in ("/api/files", url("scratch.txt"), "/api/stat?path=scratch.txt", "/nowhere"):
         assert client.get(path).status_code == 401, path
     assert client.put(url("a.txt"), json={"content": "x"}).status_code == 401
     assert client.post(url("a.txt")).status_code == 401
@@ -233,6 +241,14 @@ def test_password_is_required_for_the_files_api(client, password):
     # No WWW-Authenticate header: it would make the browser show its own
     # sign-in box locally, and AWS drops it anyway.
     assert "WWW-Authenticate" not in client.get("/api/files").headers
+
+
+def test_sign_out_works_even_when_the_session_has_already_ended(client, password):
+    """Clicking "Sign out" after the 30 days are up must still land on the sign-in
+    page, not on a 401. Signing out only removes cookies, so it's safe to leave open."""
+    response = client.get("/logout")
+    assert response.status_code == 303
+    assert response.headers["Location"].endswith("/login")
 
 
 def test_page_and_scripts_are_open_for_guest_mode(client, password):

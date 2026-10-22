@@ -2,7 +2,7 @@
 
 A simple text editor you use in a browser tab. A small Python server reads
 and writes your files; all the editing happens in the page. The same code
-runs two ways:
+runs three ways:
 
 - **On your own computer:** files live in one folder (`~/maplenote-files`),
   no password, at http://localhost:8000.
@@ -11,13 +11,16 @@ runs two ways:
   bucket and a password sign-in page in front. GitHub Actions deploys it
   after every merge.
 - **As a guest** (since 2026-10-20): anyone who isn't signed in gets the
-  same editor, with notes kept only in their own browser. Guests never
-  reach the files API, so they can't see or change anyone's files. The AWS side (Terraform) lives in the `cloud-homelab`
-  repo.
+  same editor, with notes kept only in their own browser (**Download all**
+  saves them as a .zip). Guests never reach the files API, so they can't
+  see or change anyone's files.
+
+The AWS side (Terraform) lives in the `cloud-homelab` repo.
 
 The same Docker image can also run on any Linux machine with Docker, such
-as a future homelab server. Login with Amazon Cognito, replacing the single
-password, is next on the [roadmap](docs/ROADMAP.md).
+as a future homelab server. Next on the [roadmap](docs/ROADMAP.md): its
+own CloudFront address in the production account, then login with Amazon
+Cognito in place of the single password.
 
 ## How it fits together
 
@@ -111,6 +114,17 @@ MAPLENOTE_WORKSPACE=~/Documents python app.py
 - The status bar also shows the cursor's line and column, how much is
   selected, and the word and line counts.
 
+### Keyboard shortcuts
+
+| Keys | What it does |
+|---|---|
+| Ctrl+S | Save now |
+| Alt+W | Close the tab (Chrome keeps Ctrl+W for closing its own tab) |
+| Ctrl+E | Switch a Markdown note between Edit and Preview |
+| Ctrl+F | Find and replace |
+| Ctrl+Z / Ctrl+Y | Undo / redo |
+| Middle-click a tab | Close it |
+
 ### Markdown preview
 
 Markdown files (`.md`) get an **Edit | Preview** switch at the right end of
@@ -155,8 +169,9 @@ never pass through the server.
 Open the address in Chrome (it's in the summary of the latest
 **deploy-sandbox** run in the Actions tab, or `terraform output -raw
 maplenote_url` in `cloud-homelab`). Maplenote shows its sign-in page; enter
-the password and Chrome stays signed in for 30 days. To sign out, open
-`<address>/logout`.
+the password and Chrome stays signed in for 30 days. **Sign out** (top
+right) saves your work, then removes this browser's copies of anything
+unsaved and its list of open tabs, so it's safe on a shared computer.
 
 Differences from running it locally:
 
@@ -187,7 +202,7 @@ quotes: the hash contains `$` signs). Hosting on AWS: see
 
 ## Running the tests
 
-About 125 automated tests check the server's API and storage and drive the app in a real
+About 145 automated tests check the server's API and storage and drive the app in a real
 browser. GitHub Actions runs them on every pull request. To run them yourself:
 
 ```bash
@@ -203,7 +218,8 @@ python -m pytest tests/test_api.py      # just the API tests, under a second
 - `tests/test_storage.py`: both storage backends pass the same tests; the S3
   one runs against a fake S3 (the `moto` library), so no AWS account is used.
 - `tests/browser/`: real scenarios in Chromium: editing, conflicts, crash
-  recovery, the unsaved-changes dialog, device files, the Markdown preview.
+  recovery, the unsaved-changes dialog, device files, the Markdown preview,
+  guest mode, signing in and out, keyboard shortcuts.
 - `tests/test_real_s3.py`: the same storage code against the real S3 bucket
   in the AWS sandbox account. Skipped everywhere except the
   `aws-sandbox-check` workflow, which signs in to AWS first (see

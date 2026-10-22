@@ -35,6 +35,9 @@
 // About box: the version number at the bottom right opens it, showing the version,
 // the build the app is running, and the changelog. All three come from static
 // files, so it works the same in guest mode (no API call).
+//
+// Keyboard shortcuts (see "Keyboard shortcuts" below): Ctrl+S saves, Alt+W closes
+// the tab (Chrome keeps Ctrl+W for itself), Ctrl+E switches Edit and Preview.
 
 const newButton = document.getElementById("new-button");
 const openButton = document.getElementById("open-button");
@@ -67,6 +70,8 @@ const aboutDialog = document.getElementById("about-dialog");
 const aboutVersion = document.getElementById("about-version");
 const aboutBuild = document.getElementById("about-build");
 const changelogPane = document.getElementById("changelog");
+const downloadNotesButton = document.getElementById("download-notes-button");
+const signOutButton = document.getElementById("sign-out-button");
 
 // The server sets this cookie with the page when you're signed in (app.py's
 // index()). It's only a hint: the API checks the real session itself.
@@ -109,6 +114,14 @@ function writeSetting(key, value) {
     localStorage.setItem(key, value);
   } catch {
     // Storage blocked (e.g. a private window): the setting just won't be remembered.
+  }
+}
+
+function forgetSetting(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Storage blocked: there was nothing to forget.
   }
 }
 
@@ -155,6 +168,7 @@ async function refreshFileList() {
   files = data.files;
   scratchPath = data.scratch;
   maxFileBytes = data.max_file_bytes;
+  signOutButton.hidden = !data.can_sign_out; // only when hosted with a password
   renderFileTree();
 }
 
@@ -468,6 +482,16 @@ const storeHandle = (key, handle) => browserStore("handles", "readwrite", (store
 const forgetHandle = (key) => browserStore("handles", "readwrite", (store) => store.delete(key)).catch(() => {});
 
 const loadDraft = (key) => browserStore("drafts", "readonly", (store) => store.get(key)).catch(() => null);
+
+// Empty a store, except for a guest's drafts ("guest:…"), which aren't the signed-in
+// notes and stay with this browser anyway.
+const forgetAllButGuests = (storeName) => browserStore(storeName, "readwrite", (store) => {
+  const request = store.getAllKeys();
+  request.onsuccess = () => {
+    for (const key of request.result) if (!String(key).startsWith("guest:")) store.delete(key);
+  };
+  return request;
+});
 const forgetDraft = (key) => browserStore("drafts", "readwrite", (store) => store.delete(key)).catch(() => {});
 
 function storeDraft(tab) {
@@ -1014,8 +1038,12 @@ async function saveToDevice(tab, content, manual) {
 }
 
 function downloadCopy(name, content) {
+  downloadFile(name, new Blob([content], { type: "text/plain" }));
+}
+
+function downloadFile(name, blob) {
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
+  link.href = URL.createObjectURL(blob);
   link.download = name;
   link.click();
   URL.revokeObjectURL(link.href);
@@ -1179,6 +1207,133 @@ async function deleteActive() {
   }
 }
 
+// ----------------------------------------------------------------- signing out
+
+// Set while signing out, so leaving the page doesn't write drafts back.
+let signingOut = false;
+
+// Hosted only. Save what can be saved, then remove what this browser keeps about
+// your notes (unsaved drafts, which tabs were open, device files' handles), because
+// the next person at a shared computer would otherwise find them. Then /logout
+// ends the session on the server.
+async function signOut() {
+  const unsaved = (tab) => isDirty(tab) && tab.kind !== "copy";
+  for (const tab of tabs.filter(unsaved)) await saveTab(tab, { manual: true });
+  const left = tabs.filter((tab) => isDirty(tab));
+  if (left.length && !confirm(
+    `These have changes that aren't saved: ${left.map((tab) => tab.name).join(", ")}.\n\nSign out anyway and lose them?`,
+  )) return;
+  signingOut = true;
+  tabs.forEach((tab) => clearTimeout(tab.timer));
+  await Promise.all([forgetAllButGuests("drafts"), forgetAllButGuests("handles")]).catch(() => {});
+  forgetSetting(SESSION_KEY);
+  location.href = "/logout";
+}
+
+// ------------------------------------------- downloading a guest's notes (.zip)
+
+// A guest's notes live only in this browser, so "Download all" lets them keep a
+// copy: one .zip with every note, folders included. Saved first, so unsaved
+// edits go in too.
+async function downloadGuestNotes() {
+  for (const tab of tabs.filter((tab) => tab.kind === "guest" && isDirty(tab))) {
+    await saveTab(tab, { manual: true });
+  }
+  const encoder = new TextEncoder();
+  const entries = [];
+  for (const path of (await browserNotes.list()).files) {
+    entries.push({ name: path, bytes: encoder.encode((await browserNotes.read(path)).content) });
+  }
+  const now = new Date();
+  const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((n) => String(n).padStart(2, "0")).join("-");
+  downloadFile(`maplenote-notes-${day}.zip`, makeZip(entries, now));
+  showStatus(`Downloaded ${entries.length} note${entries.length === 1 ? "" : "s"} as a .zip`);
+}
+
+// A .zip file is the files one after another, each with a short header, then a
+// table of contents at the end. Notes are small, so they're stored as they are
+// (zip allows "no compression"), which keeps this short and needs no library.
+// Format: https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
+function makeZip(entries, time) {
+  const encoder = new TextEncoder();
+  // Zip keeps times the way MS-DOS did: to 2 seconds, in local time.
+  const dosTime = (time.getHours() << 11) | (time.getMinutes() << 5) | (time.getSeconds() >> 1);
+  const dosDate = ((time.getFullYear() - 1980) << 9) | ((time.getMonth() + 1) << 5) | time.getDate();
+  const UTF8_NAMES = 0x0800; // the "file names are UTF-8" flag
+  const parts = [];
+  const contents = [];
+  let offset = 0;
+  // Each header is a list of [size in bytes, value], written little-endian.
+  const header = (fields) => {
+    const bytes = new Uint8Array(fields.reduce((total, [size]) => total + size, 0));
+    const data = new DataView(bytes.buffer);
+    let at = 0;
+    for (const [size, value] of fields) {
+      if (size === 4) data.setUint32(at, value, true);
+      else data.setUint16(at, value, true);
+      at += size;
+    }
+    return bytes;
+  };
+  for (const { name, bytes } of entries) {
+    const nameBytes = encoder.encode(name);
+    const crc = crc32(bytes);
+    const common = [
+      [2, 20], [2, UTF8_NAMES], [2, 0 /* stored */], [2, dosTime], [2, dosDate],
+      [4, crc], [4, bytes.length], [4, bytes.length], [2, nameBytes.length], [2, 0],
+    ];
+    const local = header([[4, 0x04034b50], ...common]);
+    parts.push(local, nameBytes, bytes);
+    contents.push(header([[4, 0x02014b50], [2, 20], ...common, [2, 0], [2, 0], [2, 0], [4, 0], [4, offset]]), nameBytes);
+    offset += local.length + nameBytes.length + bytes.length;
+  }
+  const contentsSize = contents.reduce((total, part) => total + part.length, 0);
+  const end = header([
+    [4, 0x06054b50], [2, 0], [2, 0], [2, entries.length], [2, entries.length],
+    [4, contentsSize], [4, offset], [2, 0],
+  ]);
+  return new Blob([...parts, ...contents, end], { type: "application/zip" });
+}
+
+// The checksum zip stores for each file (CRC-32), so unzipping can spot damage.
+let crcTable = null;
+function crc32(bytes) {
+  if (!crcTable) {
+    crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      crcTable[n] = c;
+    }
+  }
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+// ------------------------------------------------------------ keyboard shortcuts
+
+// Ctrl+S saves (instead of the browser's "Save page as"). Alt+W closes the tab:
+// Chrome never lets a page have Ctrl+W, Ctrl+T or Ctrl+Tab. Ctrl+E switches a
+// Markdown tab between Edit and Preview, as in Obsidian. Listening while the
+// event is on its way down ("capture") means the editor can't swallow them.
+document.addEventListener("keydown", (event) => {
+  const ctrl = (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey;
+  const alt = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+  const dialogOpen = Boolean(document.querySelector("dialog[open]"));
+  if (ctrl && event.code === "KeyS") {
+    event.preventDefault(); // even under a dialog, never the browser's "Save page as"
+    if (!dialogOpen && activeTab) saveTab(activeTab, { manual: true });
+  } else if (alt && event.code === "KeyW" && !dialogOpen) {
+    event.preventDefault();
+    if (activeTab && isScratch(activeTab)) showStatus("The scratch pad stays open.");
+    else if (activeTab) closeTab(activeTab);
+  } else if (ctrl && event.code === "KeyE" && !dialogOpen && activeTab?.loaded && isMarkdown(activeTab)) {
+    event.preventDefault();
+    setMode(activeTab, activeTab.mode === "preview" ? "edit" : "preview");
+  }
+}, { capture: true });
+
 // ------------------------------------------------------------------- drawing
 
 function render() {
@@ -1224,6 +1379,7 @@ function renderTabs() {
     close.className = "tab-close";
     close.type = "button";
     close.setAttribute("aria-label", `Close ${tab.name}`);
+    close.title = "Close (Alt+W)";
     close.addEventListener("click", (event) => {
       event.stopPropagation(); // don't also activate the tab we're closing
       closeTab(tab);
@@ -1356,6 +1512,10 @@ previewModeButton.addEventListener("click", () => activeTab && setMode(activeTab
 wrapToggle.checked = wrapEnabled;
 wrapToggle.addEventListener("change", () => setWordWrap(wrapToggle.checked));
 aboutButton.addEventListener("click", openAbout);
+signOutButton.addEventListener("click", () => signOut().catch((error) => showStatus(error.message, true)));
+downloadNotesButton.addEventListener("click", () => {
+  downloadGuestNotes().catch((error) => showStatus(`Download failed: ${error.message}`, true));
+});
 
 // Typing is handled by onEditorUpdate (in the editor section above).
 
@@ -1366,11 +1526,15 @@ window.addEventListener("focus", () => checkForOutsideChanges(activeTab));
 // autosaved: ask the browser to show its standard "Leave site?" warning. Browsers
 // don't let pages choose that wording.
 window.addEventListener("beforeunload", (event) => {
+  if (signingOut) return; // already asked
   if (tabs.some((tab) => isDirty(tab) && (!autosaves(tab) || tab.conflict))) event.preventDefault();
 });
 
 // Leaving the page: keep drafts of anything unsaved, as a last line of defence.
-window.addEventListener("pagehide", () => tabs.filter(isDirty).forEach(storeDraft));
+// (Not when signing out: that's just removed them on purpose.)
+window.addEventListener("pagehide", () => {
+  if (!signingOut) tabs.filter(isDirty).forEach(storeDraft);
+});
 
 async function start() {
   showVersion(); // in the background; the editor doesn't wait for it
