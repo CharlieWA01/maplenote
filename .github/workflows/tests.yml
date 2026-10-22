@@ -86,6 +86,37 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The Lambda Web Adapter comes from AWS's public registry, which
+      # refuses anonymous downloads once a runner's shared IP address has
+      # used its monthly allowance ("429 Too Many Requests"; see
+      # docs/DECISIONS.md, 2026-10-22). Pull requests can't sign in (they get
+      # no AWS role), so keep a copy of the adapter in GitHub's cache: Docker
+      # then builds from the local copy and never asks the registry. The
+      # key follows the Dockerfile's version, so an upgrade fetches anew.
+      - name: Which adapter the Dockerfile uses
+        run: echo "ADAPTER=$(grep -oE 'public\.ecr\.aws/awsguru/aws-lambda-adapter:[0-9.]+' Dockerfile)" >> "$GITHUB_ENV"
+
+      - name: Restore the cached adapter
+        id: adapter-cache
+        uses: actions/cache@v6
+        with:
+          path: /tmp/lambda-adapter.tar
+          key: lambda-adapter-${{ env.ADAPTER }}
+
+      - name: Load the cached adapter, or download it (with retries) and save it
+        run: |
+          if [ -f /tmp/lambda-adapter.tar ]; then
+            docker load -i /tmp/lambda-adapter.tar
+            exit 0
+          fi
+          for attempt in 1 2 3 4; do
+            docker pull --platform linux/amd64 "$ADAPTER" && break
+            [ "$attempt" = 4 ] && exit 1
+            echo "::warning::Pulling the adapter failed (attempt $attempt); trying again in $((attempt * 20)) s."
+            sleep $((attempt * 20))
+          done
+          docker save -o /tmp/lambda-adapter.tar "$ADAPTER"
+
       - name: Build the image
         run: docker build --provenance=false --platform linux/amd64 --build-arg MAPLENOTE_COMMIT=ci-test-commit -t maplenote:test .
 

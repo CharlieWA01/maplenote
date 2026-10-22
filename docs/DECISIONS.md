@@ -648,3 +648,42 @@ against the code: as designed, signing in would have failed in prod. Doing
 them first, with no AWS involved, means the Terraform step only has to get
 the AWS side right. **Trade-offs:** one more script file loaded on each
 page. **Cost:** $0.
+
+## 2026-10-22: Stop the public-registry 429: deploys sign in, PR builds use a cached copy
+
+**Decision:** the Lambda Web Adapter (`FROM public.ecr.aws/awsguru/aws-lambda-adapter`
+in the `Dockerfile`) is no longer downloaded anonymously where it can be
+avoided:
+- **Deploys sign in** to `public.ecr.aws` before building
+  (`aws ecr-public get-login-password --region us-east-1 | docker login …`),
+  so downloads count against the AWS account's free 5 TB a month, not the
+  runner's shared IP address. Both deploy roles in `cloud-homelab` get
+  `ecr-public:GetAuthorizationToken` and `sts:GetServiceBearerToken`. If
+  signing in fails, the deploy warns and carries on anonymously, so the two
+  repos' PRs can merge in either order.
+- **PR builds keep a copy of the adapter in GitHub's Actions cache** (keyed
+  by the adapter's version in the `Dockerfile`). Docker builds from a local
+  copy without asking the registry, so a cached build never meets the
+  limit. Only the first download per version (or after GitHub drops the
+  cache, unused for 7 days) goes to the registry, with four tries.
+- **Supersedes** the 2026-10-20 choice to re-run instead (the parked
+  `cloud-homelab#15` / `maplenote#21`). It failed three times on 2026-10-22,
+  and a failed prod deploy means approving it again.
+
+**Alternatives:**
+- *Keep re-running:* free, but a chore, worse with prod's approvals.
+- *Retries only:* the limit is per IP address for the month, so retrying
+  on the same runner mostly fails the same way. Kept only for the rare
+  first download.
+- *Copy the adapter into our own private ECR (or a pull-through cache):*
+  removes the dependency on the public registry for deploys, but PR builds
+  still have no AWS credentials, and it's one more thing to keep updated.
+- *Vendor the adapter binary into the repo:* AWS publishes it only as an
+  image, not as a release download, and a 5 MB binary in git is clumsy.
+
+**Why:** the cause is the shared address, not the code; signing in and
+caching both take the shared address out of the picture. Checked in a
+cloud session: the build reproduced the same 429 from the registry, and
+with the adapter image loaded locally the same `Dockerfile` built without
+contacting it. **Cost:** $0 (signed-in downloads are within the free
+5 TB; the Actions cache is free for public and private repos within 10 GB).

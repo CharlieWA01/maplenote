@@ -84,7 +84,7 @@ aws logs tail /aws/lambda/cwa-maplenote --since 1h --profile cwa-sandbox-claude
 |---|---|---|
 | Sign in to AWS | `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Not run from `main` |
 | Sign in to the image registry, or push | `AccessDenied`, `RepositoryNotFoundException` | The first targeted apply hasn't run, or the deploy role's ECR permissions don't match |
-| Build and push (or the `tests` image job) | `429 Too Many Requests … Data limit exceeded` from `public.ecr.aws` | AWS's public registry ran out of its anonymous download allowance for that runner's IP address (shared with everyone on GitHub). Not the code: re-run the job. See ROADMAP "Known limitations" |
+| Build and push (or the `tests` image job) | `429 Too Many Requests … Data limit exceeded` from `public.ecr.aws` | AWS's public registry ran out of its anonymous download allowance for that runner's IP address (shared with everyone on GitHub). Not the code. Deploys sign in to avoid it and PR builds use a cached copy (DECISIONS.md, 2026-10-22); if it still happens, look for the "Couldn't sign in to public.ecr.aws" warning (the role's permissions in `cloud-homelab`), then re-run |
 | Point the function | notice "The Lambda function doesn't exist yet" (green) | Expected before the second apply |
 | Check the app answers | `answered 403` | The app refused the URL's host name: check `MAPLENOTE_ALLOWED_HOSTS` in the Terraform |
 | Check the app answers | `answered 502` or `000` | The app didn't start: check the logs (a missing password hash says "Refusing to run on AWS Lambda") |
