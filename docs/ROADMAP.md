@@ -55,7 +55,8 @@ DECISIONS.md, 2026-10-20.
 | Frontend served as static files from S3 + CloudFront; only `/api`, `/login` and `/logout` reach Lambda; CloudFront adds the security headers | ✅ 2026-10-23 |
 | **Next:** Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
 | Make the repo public (code and history scrubbed 2026-10-23; role ARNs and the distribution ID moved to secrets so the logs don't show the account; old deploy runs deleted). Needed for the `production` environment's reviewer on Charlie's plan. Runbook: `docs/runbooks/go-public.md` | ✅ 2026-10-23 |
-| Move from sandbox to workloads-prod, alongside the portfolio site. Decided 2026-10-22: prod starts with no notes (nothing copied from sandbox), deploys to prod wait for Charlie's approval in GitHub, Cognito is its own step afterwards, and the sandbox app is removed once prod works. Live in workloads-prod 2026-10-23 and checked end to end by Charlie; removing the sandbox app is still to do | ⏭️ |
+| Move from sandbox to workloads-prod, alongside the portfolio site. Decided 2026-10-22: prod starts with no notes (nothing copied from sandbox), deploys to prod wait for Charlie's approval in GitHub, Cognito is its own step afterwards, and the sandbox app is removed once prod works. Live in workloads-prod 2026-10-23 and checked end to end by Charlie; sandbox app removed the same day (`deploy-sandbox` deleted, Terraform in `cloud-homelab`) | ✅ 2026-10-23 |
+| A dev copy in workloads-dev, the same shape as prod, deployed on every merge so a change is tried there before prod is approved (Charlie, 2026-10-23; `cloud-homelab` ROADMAP) | ⬜ |
 
 ## Parking lot
 
@@ -95,7 +96,7 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   restoring a stored test file handle after a reload is gone in newer Chromium
 - Update the docs workflows (`docs-check`, `docs-history`) in both repos from
   `actions/checkout@v4` to v7 (v4 runs on a deprecated Node.js; still works)
-- Reserved concurrency of 2 for the Lambda function, if sandbox's account
+- Reserved concurrency of 2 for the Lambda function, if prod's account
   limit is ever raised above 10 (a cap on cost and password guessing)
 - Keep `docs/DOCS-STANDARD.md` in one shared place (e.g. a template repo)
   instead of copying it between repos, once there are more than two
@@ -105,9 +106,8 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - A guest's notes live in one browser: another browser or device can't see
   them, and clearing the site's data deletes them. "Download all" saves a
   .zip, but there's no way to load one back in yet.
-- Until the sandbox app is removed, it still serves the page to anyone with
-  its address (guest mode). Only the page: the files API still needs the
-  password. In prod the page comes from S3, so guests never run Lambda.
+- Until the dev copy exists, there's nowhere but your own computer to try
+  a change before approving it for prod.
 
 - The hosted app has one shared password until Cognito login replaces it.
   Sessions last 30 days; changing the password signs every device out.
@@ -117,11 +117,11 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   Ctrl+W, because Chrome keeps Ctrl+W for closing its own tab.
 - After a while idle, the first request on Lambda takes a second or two
   (a "cold start").
-- The hosted app has no lockout after wrong passwords. In prod the shared
-  WAF's per-visitor rate limit sits in front of it; in sandbox, the
-  account's Lambda limit of 10 copies at once is the cap (the
-  planned reserved concurrency of 2 can't be set there; see `cloud-homelab`
-  DECISIONS.md, 2026-10-19). A long random password keeps guessing hopeless.
+- The hosted app has no lockout after wrong passwords. The shared WAF's
+  per-visitor rate limit sits in front of it, and the account's Lambda
+  limit of 10 copies at once caps cost (the planned reserved concurrency
+  of 2 can't be set while it's 10; see `cloud-homelab` DECISIONS.md,
+  2026-10-19). A long random password keeps guessing hopeless.
 - In S3 storage, renaming is a copy followed by a delete (S3 has no rename). If
   the second step fails, the file exists under both names; nothing is lost.
 - Image builds download the Lambda Web Adapter from AWS's public registry

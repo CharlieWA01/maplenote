@@ -713,3 +713,20 @@ repos keep it to the last four digits (cloud-homelab CLAUDE.md).
 - *GitHub Enterprise:* about $21 a month for one setting.
 **Cost:** $0. **Trade-off:** a secret can't be read back in GitHub's
 settings, only replaced, so its source is `terraform output`.
+
+## 2026-10-23: The sandbox copy goes; a dev copy will take its place
+
+**Decision:** delete the `deploy-sandbox` workflow and, in `cloud-homelab`,
+the sandbox app (function, URL, image repository), now that prod works.
+`aws-sandbox-check` and its bucket stay. Later, a dev copy in
+workloads-dev, built the same way as prod, gets every merge first
+(Charlie).
+**Alternatives:** *keep sandbox as the place to try changes:* free while
+idle, but it's not built like prod (no CloudFront, no page bucket, no
+OAC), so the bugs most likely to slip through (headers, body hashes,
+routing) wouldn't show there.
+**Why:** one live copy to look after, and the test copy should match what
+it's testing. Until dev exists, changes are tried locally and in the PR's
+tests, and every prod deploy checks itself.
+**Cost:** saves cents a month; details in `cloud-homelab` DECISIONS.md,
+same date.

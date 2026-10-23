@@ -1,5 +1,5 @@
 # Maplenote as a Docker image. The same image runs:
-#   - on AWS Lambda (files in S3, behind a password; see docs/runbooks/deploy-sandbox.md)
+#   - on AWS Lambda (files in S3, behind a password; see docs/runbooks/deploy.md)
 #   - on your own computer or a homelab server:
 #       docker build -t maplenote .
 #       docker run --rm -p 8000:8080 -v ~/maplenote-files:/data maplenote

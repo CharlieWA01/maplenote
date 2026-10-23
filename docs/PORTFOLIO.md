@@ -129,7 +129,8 @@ why it's built that way.
   requirements, design and review.
 
 ## What's next
-Cognito login to replace the stopgap password, removing the sandbox copy,
+Cognito login to replace the stopgap password, a dev copy to try changes
+in before prod,
 and a tile on the portfolio site; see
 `docs/ROADMAP.md`. The AWS side (Terraform) lives in the `cloud-homelab`
 repo.
