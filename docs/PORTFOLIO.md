@@ -8,8 +8,9 @@ Details: `docs/journal/` (what happened), `docs/DECISIONS.md` (why),
 A self-hosted, Notepad++-style text editor that runs as a small Python web
 server and is used in the browser: tabs, autosave, conflict detection, a real
 code editor and Markdown preview. Designed from day one to move to AWS, and
-now live there: a Docker image on Lambda, notes in S3, deployed by GitHub
-Actions without stored keys.
+now live there: the page on S3 behind CloudFront, the server as a Docker
+image on Lambda, notes in S3, deployed by GitHub Actions without stored
+keys, and each production deploy approved by me.
 
 ## The problem
 I spend a lot of time in text files: notes, logs and config files, mostly on a
@@ -39,6 +40,19 @@ also wanted a real project to learn git, GitHub and software design on.
   it and checks the live URL asks for a password, all without stored AWS
   keys (OIDC). A password with a server-side scrypt hash protects it until
   Cognito login; the app refuses to start on Lambda without one.
+- **In production since 2026-10-23,** in its own AWS account
+  (workloads-prod) behind its own CloudFront distribution: the page and
+  scripts come from a private S3 bucket, only `/api`, `/login` and
+  `/logout` reach Lambda, both through origin access control (CloudFront
+  signs each request, and the function can't be called any other way).
+  A shared WAF rate-limits each visitor; CloudFront adds the security
+  headers. Each prod deploy waits for my approval in GitHub, then checks
+  that the API refuses strangers, that the live page runs the commit just
+  shipped, and that going around CloudFront is blocked.
+- **A public repo with nothing private in it:** before making it public I
+  scrubbed every commit, issue and PR, found the AWS account ID in old
+  Actions logs, moved those values into GitHub secrets, and deleted the
+  old runs.
 - **Guest mode for visitors:** no login; their notes live in their own
   browser (IndexedDB) behind the same interface as the server's files, with
   the server's rules repeated there (conflict detection across browser tabs,
@@ -62,14 +76,15 @@ also wanted a real project to learn git, GitHub and software design on.
 │ device files via File System API  │     │ 409 on stale saves     │   │ or S3 bucket │
 └───────────────────────────────────┘     │ CSP + Host allowlist   │   └──────────────┘
   (device files never touch the server)   └────────────────────────┘
-  Hosted: browser → Lambda function URL (HTTPS) → the same server in a
-  Docker image on Lambda → S3. Locally: localhost → the server → a folder.
+  Prod: browser → CloudFront (WAF, security headers) → the page from S3,
+  and /api, /login, /logout → the same server in a Docker image on Lambda
+  → S3. Locally: localhost → the server → a folder.
 ```
 
 ## Tech
 Python 3.11, Flask · JavaScript (no framework), CodeMirror 6, markdown-it,
 esbuild for vendoring · File System Access API, IndexedDB · Docker, gunicorn,
-AWS Lambda (Web Adapter), ECR, S3 via boto3, Terraform (in `cloud-homelab`) · pytest, moto and Playwright (Python) for
+AWS Lambda (Web Adapter), ECR, S3 via boto3, CloudFront, WAF, Terraform (in `cloud-homelab`) · pytest, moto and Playwright (Python) for
 automated API, storage and browser tests, run by GitHub Actions · git, GitHub pull requests · ChromeOS Linux
 environment · built with Claude Code.
 
@@ -101,6 +116,10 @@ why it's built that way.
   (Lambda Web Adapter, ECR, S3 storage with conditional writes), deployed on
   every merge by GitHub Actions via OIDC with no stored AWS keys, and
   checked after each deploy that the live URL still demands a password.
+- Moved the app to a production AWS account behind CloudFront (static page
+  on S3, API on Lambda, both reachable only through origin access control,
+  WAF rate limiting), with each production deploy gated on a manual
+  approval and verified automatically afterwards.
 - Hardened a local web app against path traversal, DNS rebinding and XSS
   (path confinement, Host allowlist, Content-Security-Policy, HTML-disabled
   Markdown rendering), verified with automated injection tests.
@@ -110,8 +129,7 @@ why it's built that way.
   requirements, design and review.
 
 ## What's next
-The portfolio site: the page served from S3 + CloudFront in the
-workloads-prod account, then Cognito login to replace the stopgap
-password, then polish; see
+Cognito login to replace the stopgap password, removing the sandbox copy,
+and a tile on the portfolio site; see
 `docs/ROADMAP.md`. The AWS side (Terraform) lives in the `cloud-homelab`
 repo.
