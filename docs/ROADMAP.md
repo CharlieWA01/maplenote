@@ -54,6 +54,7 @@ DECISIONS.md, 2026-10-20.
 | `deploy-prod` workflow: each app change waits for Charlie's approval (GitHub `production` environment), then ships the image and the page and checks the result. Terraform in `cloud-homelab#23` | ✅ written 2026-10-22, runs once applied |
 | **Next:** Frontend served as static files from S3 + CloudFront; only `/api`, `/login` and `/logout` reach Lambda; CloudFront adds the security headers (with the move below; Charlie approves each apply) | ⏭️ |
 | Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
+| Make the repo public (code and history scrubbed 2026-10-23; role ARNs and the distribution ID moved to secrets so the logs don't show the account; old deploy runs deleted). Needed for the `production` environment's reviewer on Charlie's plan. Runbook: `docs/runbooks/go-public.md` | ⏭️ |
 | Move from sandbox to workloads-prod, alongside the portfolio site. Decided 2026-10-22: prod starts with no notes (nothing copied from sandbox), deploys to prod wait for Charlie's approval in GitHub, Cognito is its own step afterwards, and the sandbox app is removed once prod works | ⬜ |
 
 ## Parking lot

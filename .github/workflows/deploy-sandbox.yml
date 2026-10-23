@@ -9,6 +9,10 @@
 # to the app (or the image recipe) is merged, and by hand from the Actions
 # tab ("Run workflow"). Pull requests build and test the image in the `tests`
 # workflow instead. Cost: a few cents a month for stored images.
+#
+# The repo is public, and so are its logs: the role's ARN is a secret
+# (printed as ***), the account ID is masked after sign-in, and so is the
+# function's address.
 name: deploy-sandbox
 
 on:
@@ -53,7 +57,7 @@ jobs:
       - name: Sign in to AWS (sandbox)
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: true
 
@@ -124,10 +128,11 @@ jobs:
         if: steps.update.outputs.updated == 'true'
         run: |
           url=$(aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --query FunctionUrl --output text)
+          echo "::add-mask::$url"
           status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 --retry 3 --retry-all-errors "${url}api/files")
           echo "Without a password, ${url}api/files answered $status"
           test "$status" = 401
           build=$(curl -s --max-time 30 --retry 3 --retry-all-errors "${url}static/build.json")
           echo "Build record: $build"
           grep -q "\"commit\": \"$GITHUB_SHA\"" <<< "$build"
-          echo "Maplenote is deployed: $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Maplenote is deployed to sandbox (address: terraform output maplenote_url)." >> "$GITHUB_STEP_SUMMARY"

@@ -9,9 +9,11 @@ one-hour credentials, no keys stored anywhere) and runs
 
 1. The bucket exists: `cloud-homelab`, `docs/runbooks/terraform-workflow.md`,
    section "Maplenote's bucket".
-2. Two repository variables (GitHub: Settings → Secrets and variables →
-   Actions → Variables): `AWS_DEPLOY_ROLE_ARN` (already set) and
-   `MAPLENOTE_S3_BUCKET` (the bucket name from `terraform output`).
+2. A repository secret and a variable (GitHub: Settings → Secrets and
+   variables → Actions): the secret `AWS_DEPLOY_ROLE_ARN` (already set; a
+   secret so the public logs show *** instead of the account ID, see
+   `go-public.md`) and the variable `MAPLENOTE_S3_BUCKET` (the bucket name
+   from `terraform output`; masked in the logs after sign-in).
 
 ## When it runs
 
