@@ -224,3 +224,25 @@ the architecture and why it's that way. That's what these stories are for.
 - **Lesson:** decide where the real security boundary is (the server) and
   keep the browser-side switch as a hint, so a bug or a tampered page can't
   open anything up.
+
+## Making my repo public without leaking my AWS account
+**Tags:** Security, Process
+
+- **Situation:** GitHub only offers deploy approvals on my plan for public
+  repos, and I wanted Maplenote public for my portfolio anyway. But a
+  public repo publishes its history, issues, and every CI log.
+- **Task:** Make it public with nothing private in it, then put a manual
+  approval in front of every production deploy.
+- **Action:** Scrubbed every commit, issue and PR for account IDs, emails,
+  keys and URLs: clean. Then read a CI log the way a stranger would and
+  found the AWS account ID in the role ARN, printed by the sign-in step
+  before its own masking starts. Moved those values to GitHub secrets
+  (masked from the start), deleted the 13 old runs, checked a new log
+  showed `***`, and only then flipped the visibility. The production
+  environment needs my approval and only accepts `main`.
+- **Result:** The repo is public, the first prod deploys went through the
+  approval, and their logs show `***` where the account ID was. Each deploy
+  proves itself: the API refuses strangers, the page runs the commit just
+  shipped, and going around CloudFront is blocked.
+- **Lesson:** a code scrub isn't enough; the CI logs are part of what
+  goes public, and a tool's "masking" option may start later than you think.

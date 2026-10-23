@@ -39,18 +39,24 @@ history, issues and PRs, and **every Actions run's log and summary**.
    and aws-sandbox-check run from before step 2 (Actions → the workflow →
    each run's **…** → Delete workflow run). Claude can do this for you
    once you say so; deleting runs can't be undone.
-5. **Contributors from outside:** Settings → Actions → General → "Approval
+5. **Go public:** Settings → General → Danger Zone → **Change visibility**
+   → Make public.
+6. **Contributors from outside:** Settings → Actions → General → "Approval
    for running fork pull request workflows from contributors": choose
    **Require approval for all external contributors**. Forks never get the
    AWS roles (those trust only `main` or the `production` environment),
-   but this keeps strangers from using the runners.
-6. **Go public:** Settings → General → Danger Zone → **Change visibility**
-   → Make public.
+   but this keeps strangers from using the runners. (The setting only
+   appears once the repo is public, hence this order.)
 7. **The approval gate:** Settings → Environments → `production` → tick
    **Required reviewers**, add yourself, then under "Deployment branches
    and tags" choose **Selected branches and tags** and add `main`. Save.
    Then carry on with cloud-homelab's `docs/runbooks/maplenote-prod.md`,
    step 3.
+
+## Done
+
+All seven steps were done on 2026-10-23, and the first prod deploy
+after them showed `***` for the account ID and the distribution ID.
 
 ## Afterwards
 

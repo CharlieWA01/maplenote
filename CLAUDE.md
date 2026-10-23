@@ -1,8 +1,9 @@
 # Maplenote: briefing for Claude
 
 Maplenote is a small, self-hosted text editor that Charlie is building to
-use daily and to learn from. It runs locally and, since 2026-10-19, on AWS
-Lambda in the sandbox account (see Architecture). Charlie knows some Python, is new to git and
+use daily and to learn from. It runs locally and on AWS Lambda: in
+workloads-prod behind CloudFront since 2026-10-23, and still in the sandbox
+account until that copy is removed (see Architecture). Charlie knows some Python, is new to git and
 GitHub, and wants to understand the architecture without reading every line.
 Explain what you're doing and why, in plain language.
 
@@ -93,7 +94,7 @@ appear under Charlie's account).
 
 ## Ground rules
 
-- The repo is public (or about to be; `docs/runbooks/go-public.md`), and so
+- The repo is public (since 2026-10-23; `docs/runbooks/go-public.md`), and so
   are its Actions logs. Anything holding the account ID goes in a
   **secret**, never a variable or a `run:` line, and nothing private goes
   in code, commits, PRs or comments.

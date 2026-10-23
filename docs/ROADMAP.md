@@ -51,11 +51,11 @@ DECISIONS.md, 2026-10-20.
 | The `cloud-homelab` side: SCPs on the Workloads OU, the landing page's CloudFront + S3 + WAF in workloads-prod, and its `portfolio` repo (`cloud-homelab` ROADMAP, Phase 4) | ✅ 2026-10-20 |
 | Version 1 step 6 (polish) done before the site goes public, since visitors only glance | ✅ 2026-10-22 |
 | App side of the move, ready before any AWS change: every non-GET request carries its body's hash (for OAC), the sign-in form is sent by script so it can too, and the "signed in" hint is set at sign-in (the page will come from S3) | ✅ 2026-10-22 |
-| `deploy-prod` workflow: each app change waits for Charlie's approval (GitHub `production` environment), then ships the image and the page and checks the result. Terraform in `cloud-homelab#23` | ✅ written 2026-10-22, runs once applied |
-| **Next:** Frontend served as static files from S3 + CloudFront; only `/api`, `/login` and `/logout` reach Lambda; CloudFront adds the security headers (with the move below; Charlie approves each apply) | ⏭️ |
-| Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
-| Make the repo public (code and history scrubbed 2026-10-23; role ARNs and the distribution ID moved to secrets so the logs don't show the account; old deploy runs deleted). Needed for the `production` environment's reviewer on Charlie's plan. Runbook: `docs/runbooks/go-public.md` | ⏭️ |
-| Move from sandbox to workloads-prod, alongside the portfolio site. Decided 2026-10-22: prod starts with no notes (nothing copied from sandbox), deploys to prod wait for Charlie's approval in GitHub, Cognito is its own step afterwards, and the sandbox app is removed once prod works | ⬜ |
+| `deploy-prod` workflow: each app change waits for Charlie's approval (GitHub `production` environment), then ships the image and the page and checks the result. Terraform in `cloud-homelab#23` | ✅ live 2026-10-23 (first approved deploy passed all its checks) |
+| Frontend served as static files from S3 + CloudFront; only `/api`, `/login` and `/logout` reach Lambda; CloudFront adds the security headers | ✅ 2026-10-23 |
+| **Next:** Cognito login for Charlie only (sign-up off); signed in means "my notes, synced to S3" | ⬜ |
+| Make the repo public (code and history scrubbed 2026-10-23; role ARNs and the distribution ID moved to secrets so the logs don't show the account; old deploy runs deleted). Needed for the `production` environment's reviewer on Charlie's plan. Runbook: `docs/runbooks/go-public.md` | ✅ 2026-10-23 |
+| Move from sandbox to workloads-prod, alongside the portfolio site. Decided 2026-10-22: prod starts with no notes (nothing copied from sandbox), deploys to prod wait for Charlie's approval in GitHub, Cognito is its own step afterwards, and the sandbox app is removed once prod works. Live in workloads-prod 2026-10-23 and checked end to end by Charlie; removing the sandbox app is still to do | ⏭️ |
 
 ## Parking lot
 
@@ -105,9 +105,9 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
 - A guest's notes live in one browser: another browser or device can't see
   them, and clearing the site's data deletes them. "Download all" saves a
   .zip, but there's no way to load one back in yet.
-- Until the frontend moves to S3 + CloudFront, the sandbox Lambda serves the
-  page to anyone with its address (guest mode). Only the page: the files API
-  still needs the password. Each visit is a few small requests to Lambda.
+- Until the sandbox app is removed, it still serves the page to anyone with
+  its address (guest mode). Only the page: the files API still needs the
+  password. In prod the page comes from S3, so guests never run Lambda.
 
 - The hosted app has one shared password until Cognito login replaces it.
   Sessions last 30 days; changing the password signs every device out.
@@ -117,8 +117,9 @@ Ideas we've discussed but haven't scheduled. Promote one by moving it into a ste
   Ctrl+W, because Chrome keeps Ctrl+W for closing its own tab.
 - After a while idle, the first request on Lambda takes a second or two
   (a "cold start").
-- The hosted app has no request limit of its own and no lockout after wrong
-  passwords. Sandbox's Lambda limit of 10 copies at once is the cap (the
+- The hosted app has no lockout after wrong passwords. In prod the shared
+  WAF's per-visitor rate limit sits in front of it; in sandbox, the
+  account's Lambda limit of 10 copies at once is the cap (the
   planned reserved concurrency of 2 can't be set there; see `cloud-homelab`
   DECISIONS.md, 2026-10-19). A long random password keeps guessing hopeless.
 - In S3 storage, renaming is a copy followed by a delete (S3 has no rename). If
