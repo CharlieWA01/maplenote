@@ -8,8 +8,8 @@
 # has Charlie as its required reviewer, and the AWS role trusts only jobs in
 # that environment (cloud-homelab DECISIONS.md, 2026-10-22). Each merge
 # that changes the app starts a run that waits on the Actions tab for
-# "Review deployments". deploy-sandbox has already shipped the same commit
-# to sandbox, so it can be tried there first.
+# "Review deployments". There's no test copy yet (a dev copy is planned),
+# so try a change locally before approving. See docs/runbooks/deploy.md.
 #
 # The repo is public, and so are its logs: the role's ARN (which holds the
 # account ID) and the distribution ID are secrets, so GitHub prints them as
@@ -81,7 +81,7 @@ jobs:
           echo "IMAGE=$registry/$ECR_REPOSITORY:$GITHUB_SHA" >> "$GITHUB_ENV"
           aws ecr get-login-password | docker login --username AWS --password-stdin "$registry"
 
-      # Same recipe as deploy-sandbox. The build time is kept for the page's
+      # The build time is kept for the page's
       # build record too, so the image and the page say the same.
       # The Lambda Web Adapter in the Dockerfile comes from AWS's public
       # registry. Anonymous downloads share the runner's IP address's monthly

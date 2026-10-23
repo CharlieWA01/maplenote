@@ -16,8 +16,8 @@ device files doesn't work). Stop the server with `Ctrl+C`.
 ## Use the hosted copy instead
 
 Nothing to start: open the AWS address in Chrome and sign in. It's
-updated automatically after each merge. Details, including where to find
-the address: `docs/runbooks/deploy-sandbox.md`.
+updated after each merge, once you approve the deploy. Details, including
+where to find the address: `docs/runbooks/deploy.md`.
 
 ## Get the latest version after a merge
 

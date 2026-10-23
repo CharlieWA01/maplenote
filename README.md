@@ -6,10 +6,11 @@ runs three ways:
 
 - **On your own computer:** files live in one folder (`~/maplenote-files`),
   no password, at http://localhost:8000.
-- **Hosted on AWS** (since 2026-10-19): the same app, packaged as a Docker
-  image, runs on AWS Lambda in the sandbox account, with notes in an S3
-  bucket and a password sign-in page in front. GitHub Actions deploys it
-  after every merge.
+- **Hosted on AWS** (since 2026-10-19; in workloads-prod since
+  2026-10-23): the same app, packaged as a Docker image, runs on AWS
+  Lambda behind CloudFront, with notes in an S3 bucket and a password
+  sign-in page in front. GitHub Actions deploys it after each merge, once
+  Charlie approves.
 - **As a guest** (since 2026-10-20): anyone who isn't signed in gets the
   same editor, with notes kept only in their own browser (**Download all**
   saves them as a .zip). Guests never reach the files API, so they can't
@@ -167,8 +168,8 @@ never pass through the server.
 ## Using the hosted copy (AWS)
 
 Open the address in Chrome (it's in the summary of the latest
-**deploy-sandbox** run in the Actions tab, or `terraform output -raw
-maplenote_url` in `cloud-homelab`). Maplenote shows its sign-in page; enter
+**deploy-prod** run in the Actions tab, or `terraform output -raw
+maplenote_url` in `cloud-homelab/terraform/prod`). Maplenote shows its sign-in page; enter
 the password and Chrome stays signed in for 30 days. **Sign out** (top
 right) saves your work, then removes this browser's copies of anything
 unsaved and its list of open tabs, so it's safe on a shared computer.
@@ -183,7 +184,7 @@ Differences from running it locally:
   starts the app (a "cold start").
 
 Deploying, changing the password, rolling back and reading the logs:
-[`docs/runbooks/deploy-sandbox.md`](docs/runbooks/deploy-sandbox.md).
+[`docs/runbooks/deploy.md`](docs/runbooks/deploy.md).
 
 ## Running it in Docker
 
@@ -198,7 +199,7 @@ docker run --rm -p 8000:8080 -v ~/maplenote-files:/data maplenote
 Then open **http://localhost:8000**. To require a password, make a hash with
 `python auth.py` and add `-e MAPLENOTE_PASSWORD_HASH='<the hash>'` (single
 quotes: the hash contains `$` signs). Hosting on AWS: see
-[`docs/runbooks/deploy-sandbox.md`](docs/runbooks/deploy-sandbox.md).
+[`docs/runbooks/deploy.md`](docs/runbooks/deploy.md).
 
 ## Running the tests
 

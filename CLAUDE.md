@@ -1,9 +1,8 @@
 # Maplenote: briefing for Claude
 
 Maplenote is a small, self-hosted text editor that Charlie is building to
-use daily and to learn from. It runs locally and on AWS Lambda: in
-workloads-prod behind CloudFront since 2026-10-23, and still in the sandbox
-account until that copy is removed (see Architecture). Charlie knows some Python, is new to git and
+use daily and to learn from. It runs locally and, since 2026-10-23, on AWS
+Lambda in workloads-prod behind CloudFront (see Architecture). Charlie knows some Python, is new to git and
 GitHub, and wants to understand the architecture without reading every line.
 Explain what you're doing and why, in plain language.
 
@@ -53,11 +52,12 @@ appear under Charlie's account).
   The page and `/static/` are open (guest mode); the API is not.
   On Lambda the app refuses to start without the hash. Cognito replaces it later.
 - `Dockerfile`: the one image for Lambda and anywhere else (gunicorn, one
-  worker, plus AWS's Lambda Web Adapter). The `deploy-sandbox` workflow
-  ships it; the AWS resources are Terraform in the `cloud-homelab` repo
-  (`terraform/sandbox/maplenote-app.tf`). `deploy-prod` ships the same
-  image plus the page's files to workloads-prod (`terraform/prod/`), after
-  Charlie approves it in the `production` GitHub environment.
+  worker, plus AWS's Lambda Web Adapter). `deploy-prod` ships it plus the
+  page's files to workloads-prod, after Charlie approves it in the
+  `production` GitHub environment (`docs/runbooks/deploy.md`); the AWS
+  resources are Terraform in the `cloud-homelab` repo (`terraform/prod/`).
+  Sandbox keeps only a bucket for `aws-sandbox-check`; a dev copy is
+  planned.
 - `static/`: plain HTML/CSS/JS, no build step. `app.js` holds tabs, sidebar
   and file actions. Two modes: signed in (or local), and **guest** (not
   signed in: notes in the browser's IndexedDB, the API never called; the
@@ -74,7 +74,7 @@ appear under Charlie's account).
   The version is the first heading of `static/changelog.md`; the About box
   (the version in the status bar) shows it, the changelog, and the build
   record `static/build.json` that the `Dockerfile` writes into the image
-  (commit and time, passed by `deploy-sandbox`).
+  (commit and time, passed by `deploy-prod`).
   Every save goes through `saveTab()`; each tab tracks the file `version`
   it last saw, and saves carry it so changes made elsewhere aren't
   overwritten (the server returns 409 for workspace files).
