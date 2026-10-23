@@ -32,3 +32,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-21 | [#22](https://github.com/CharlieWA01/maplenote/pull/22) | Finish Version 1: sign out, shortcuts, guest .zip download (1.0.0) |
 | 2026-10-21 | [#23](https://github.com/CharlieWA01/maplenote/pull/23) | Get the app ready for CloudFront with OAC (prod move, step A) |
 | 2026-10-21 | [#24](https://github.com/CharlieWA01/maplenote/pull/24) | Add deploy-prod (approval-gated) and stop the public-registry 429 |
+| 2026-10-23 | [#25](https://github.com/CharlieWA01/maplenote/pull/25) | Get ready to go public: role ARNs as secrets, masked addresses |
