@@ -687,3 +687,29 @@ cloud session: the build reproduced the same 429 from the registry, and
 with the adapter image loaded locally the same `Dockerfile` built without
 contacting it. **Cost:** $0 (signed-in downloads are within the free
 5 TB; the Actions cache is free for public and private repos within 10 GB).
+
+## 2026-10-23: Make the repo public, with account-ID values as secrets
+
+**Decision:** maplenote becomes a public repo (Charlie, 2026-10-23), after
+a scrub of its code, history, issues and Actions logs. The deploy roles'
+ARNs and prod's CloudFront distribution ID move from repository variables
+to **secrets**, and the function addresses are masked in the logs. Old
+deploy runs, which printed the sandbox account ID, are deleted before the
+switch. Steps: `docs/runbooks/go-public.md`.
+**Why:** the approval in front of `deploy-prod` (a required reviewer on
+the `production` environment, 2026-10-22) isn't offered for private repos
+on Charlie's plan; Charlie found no such setting. The repo was always meant
+to be visible from the portfolio, and public repos' Actions minutes are
+free.
+**Why secrets:** a public repo's logs are public. GitHub prints variables
+as they are, and `configure-aws-credentials` prints its inputs, the role
+ARN included, before it masks the account ID. Secrets are always printed
+as `***`. The account ID isn't a password (AWS says as much), but Charlie's
+repos keep it to the last four digits (cloud-homelab CLAUDE.md).
+**Alternatives:**
+- *Stay private, deploy prod by pressing "Run workflow":* works today, and
+  only Charlie can press it; but merges no longer queue a prod deploy, and
+  the code stays hidden from the portfolio.
+- *GitHub Enterprise:* about $21 a month for one setting.
+**Cost:** $0. **Trade-off:** a secret can't be read back in GitHub's
+settings, only replaced, so its source is `terraform output`.

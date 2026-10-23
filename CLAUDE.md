@@ -93,6 +93,11 @@ appear under Charlie's account).
 
 ## Ground rules
 
+- The repo is public (or about to be; `docs/runbooks/go-public.md`), and so
+  are its Actions logs. Anything holding the account ID goes in a
+  **secret**, never a variable or a `run:` line, and nothing private goes
+  in code, commits, PRs or comments.
+
 - The server never reads or writes outside the workspace folder. Every path
   from the browser goes through `resolve_in_workspace()`.
 - Enforce rules on the server, not just in the UI (e.g. the scratch pad is

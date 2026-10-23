@@ -11,6 +11,10 @@
 # "Review deployments". deploy-sandbox has already shipped the same commit
 # to sandbox, so it can be tried there first.
 #
+# The repo is public, and so are its logs: the role's ARN (which holds the
+# account ID) and the distribution ID are secrets, so GitHub prints them as
+# ***, and the account ID is masked everywhere after sign-in.
+#
 # Setup and first run: cloud-homelab docs/runbooks/maplenote-prod.md.
 name: deploy-prod
 
@@ -48,12 +52,13 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Skipped until prod is set up (the role's variable is the last thing
-    # the runbook's step 4 sets), so merges before then don't fail here.
-    if: vars.AWS_PROD_DEPLOY_ROLE_ARN != ''
+    # Skipped until prod is set up (PROD_DEPLOY_ENABLED is the last thing
+    # the runbook's step 4 sets), so merges before then don't fail here. A
+    # job's `if` can't read secrets, hence a separate switch.
+    if: vars.PROD_DEPLOY_ENABLED == 'true'
     # Waits here for Charlie's approval; the AWS role trusts nothing else.
     # Create the "production" environment with its reviewer before setting
-    # the variable: GitHub makes a missing environment by itself, with no
+    # the switch: GitHub makes a missing environment by itself, with no
     # reviewer.
     environment:
       name: production
@@ -64,7 +69,7 @@ jobs:
       - name: Sign in to AWS (prod)
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_PROD_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_PROD_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: true
 
@@ -135,8 +140,8 @@ jobs:
           printf '{"commit": "%s", "built": "%s"}\n' "$GITHUB_SHA" "$BUILT" > static/build.json
           aws s3 sync static/ "s3://$BUCKET/static/" --delete --cache-control no-cache --only-show-errors
           aws s3 cp static/index.html "s3://$BUCKET/index.html" --cache-control no-cache --only-show-errors
-          ids=$(aws cloudfront create-invalidation --distribution-id "${{ vars.PROD_DISTRIBUTION_ID }}" --paths '/*' --query Invalidation.Id --output text)
-          aws cloudfront wait invalidation-completed --distribution-id "${{ vars.PROD_DISTRIBUTION_ID }}" --id "$ids"
+          ids=$(aws cloudfront create-invalidation --distribution-id "${{ secrets.PROD_DISTRIBUTION_ID }}" --paths '/*' --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "${{ secrets.PROD_DISTRIBUTION_ID }}" --id "$ids"
 
       # As a stranger sees it: through CloudFront the files API must ask for
       # the password (401) and the page must be this commit; around
@@ -153,6 +158,7 @@ jobs:
           echo "Build record: $build"
           grep -q "\"commit\": \"$GITHUB_SHA\"" <<< "$build"
           direct=$(aws lambda get-function-url-config --function-name "$FUNCTION_NAME" --query FunctionUrl --output text)
+          echo "::add-mask::$direct"
           status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${direct}api/files")
           echo "Straight at the function URL, /api/files answered $status"
           test "$status" = 403
