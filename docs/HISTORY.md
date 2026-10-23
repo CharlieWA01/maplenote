@@ -34,3 +34,4 @@ story behind each change is in `docs/journal/`. See `docs/DOCS-STANDARD.md`.
 | 2026-10-21 | [#24](https://github.com/CharlieWA01/maplenote/pull/24) | Add deploy-prod (approval-gated) and stop the public-registry 429 |
 | 2026-10-23 | [#25](https://github.com/CharlieWA01/maplenote/pull/25) | Get ready to go public: role ARNs as secrets, masked addresses |
 | 2026-10-23 | [#26](https://github.com/CharlieWA01/maplenote/pull/26) | docs: Maplenote is live in prod |
+| 2026-10-23 | [#27](https://github.com/CharlieWA01/maplenote/pull/27) | Remove deploy-sandbox; one runbook for prod deploys |
